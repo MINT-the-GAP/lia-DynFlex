@@ -211,23 +211,19 @@ function $33087b216e99876d$var$ensurePx(v) {
 // ── Blockify ──────────────────────────────────────────────────────────────────
 function $33087b216e99876d$var$blockifyFlexChild(fc, doc) {
     if (fc.dataset.dynflexBlockified === "1") return;
-    if (fc.querySelector("input, textarea, select, button, .lia-btn, .lia-quiz")) return;
-    const html = fc.innerHTML || "";
-    if (!html.includes("[[")) {
+    if (fc.querySelector("input, textarea, select, button, .lia-btn, .lia-quiz")) {
         fc.dataset.dynflexBlockified = "1";
         return;
     }
-    const parts = html.split(/\n[ \t]*\n+/).filter((p)=>p.replace(/\s+/g, "").length > 0);
-    if (parts.length <= 1) {
-        fc.dataset.dynflexBlockified = "1";
-        return;
-    }
-    fc.innerHTML = "";
-    for (const part of parts){
-        const d = doc.createElement("div");
-        d.setAttribute("data-dynflex-block", "1");
-        d.innerHTML = part;
-        fc.appendChild(d);
+    const parts = (fc.innerHTML || "").split(/\n[ \t]*\n+/).filter((p)=>p.replace(/\s+/g, "").length > 0);
+    if (parts.length > 1 && fc.innerHTML.includes("[[")) {
+        fc.innerHTML = "";
+        for (const part of parts){
+            const d = doc.createElement("div");
+            d.setAttribute("data-dynflex-block", "1");
+            d.innerHTML = part;
+            fc.appendChild(d);
+        }
     }
     fc.dataset.dynflexBlockified = "1";
 }
