@@ -170,7 +170,6 @@ function $67d8bd73256b8650$export$3d687a15f750108a(rootDoc, contentDoc) {
             const mql = rootWin.matchMedia("(prefers-color-scheme: dark)");
             const handler = ()=>update(true);
             if (mql.addEventListener) mql.addEventListener("change", handler);
-            else if (mql.addListener) mql.addListener(handler);
         } catch (_) {}
     }
     return {

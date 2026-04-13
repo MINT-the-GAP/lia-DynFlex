@@ -56,7 +56,6 @@ export function makeThemeManager(rootDoc: Document, contentDoc: Document) {
       const mql = rootWin.matchMedia("(prefers-color-scheme: dark)");
       const handler = () => update(true);
       if (mql.addEventListener) mql.addEventListener("change", handler);
-      else if ((mql as any).addListener) (mql as any).addListener(handler);
     } catch (_) {}
   }
 
