@@ -1,40 +1,5 @@
-/**
- * LiaScript DynFlex Plugin
- * 
- * Creates dynamic, resizable flex containers with interactive quiz elements.
- * Supports drag-to-resize, persistent widths, and automatic block handling for quiz inputs.
- */ (function() {
-    // =========================================================
-    // Root/Content + Run-Once (import-safe)
-    // =========================================================
-    function getRootWindow() {
-        let w = window;
-        try {
-            while(w.parent && w.parent !== w)w = w.parent;
-        } catch (e) {}
-        return w;
-    }
-    const ROOT_WIN = getRootWindow();
-    const ROOT_DOC = ROOT_WIN.document;
-    const CONTENT_WIN = window;
-    const CONTENT_DOC = document;
-    const REGKEY = "__LIA_DYNFLEX_V6_8__";
-    ROOT_WIN[REGKEY] = ROOT_WIN[REGKEY] || {
-        docs: {}
-    };
-    const DOC_KEY_ATTR = "data-dynflex-doc";
-    let docKey = CONTENT_DOC.documentElement.getAttribute(DOC_KEY_ATTR);
-    if (!docKey) {
-        docKey = (CONTENT_DOC.baseURI || CONTENT_WIN.location.href || "dynflex") + "::" + Math.random().toString(36).slice(2);
-        CONTENT_DOC.documentElement.setAttribute(DOC_KEY_ATTR, docKey);
-    }
-    if (ROOT_WIN[REGKEY].docs[docKey]) return;
-    ROOT_WIN[REGKEY].docs[docKey] = true;
-    // =========================================================
-    // CSS Injection (import-robust)
-    // =========================================================
-    const STYLE_ID = "lia-dynflex-style-v6-8";
-    const CSS = `
+const $1385bbac798b6a24$var$STYLE_ID = "lia-dynflex-style-v1-0";
+const $1385bbac798b6a24$var$CSS = `
 .dynFlex{
   --dyn-gap:  20px;
   --dyn-hit:  22px;
@@ -48,7 +13,6 @@
   overflow: visible !important;
 }
 
-/* Flex-ITEM = direktes Kind im Container (kann Wrapper oder flex-child selbst sein) */
 .dynFlex > .dynFlexItem{
   position: relative !important;
   box-sizing: border-box !important;
@@ -65,8 +29,6 @@
   overflow: visible !important;
 }
 
-/* Wenn authored .flex-child NICHT das direkte Kind ist (Wrapper-Fall),
-   neutralisieren wir Box-Styling innen, damit es nicht doppelt aussieht. */
 .dynFlex > .dynFlexItem .flex-child{
   padding: 0 !important;
   border-left: 0 !important;
@@ -74,7 +36,6 @@
   background: transparent !important;
 }
 
-/* >>> Leerzeilen-Fix: automatisch erzeugte Unter-Bl\xf6cke im flex-child */
 .flex-child > [data-dynflex-block]{
   display: block !important;
   margin: 0 0 0.9rem 0 !important;
@@ -83,13 +44,11 @@
   margin-bottom: 0 !important;
 }
 
-/* Drag: keine Textmarkierung */
 .dynFlex.dynFlexDragging,
 .dynFlex.dynFlexDragging *{
   user-select: none !important;
 }
 
-/* Resizer am ITEM */
 .dynFlex > .dynFlexItem > .dynFlexResizer{
   position: absolute !important;
   top: 0 !important;
@@ -105,7 +64,6 @@
   z-index: 9999 !important;
 }
 
-/* End-Resizer: gleicher Abstand wie die anderen */
 .dynFlex > .dynFlexItem > .dynFlexResizer.dynFlexResizerEnd{
   left: auto !important;
   right: calc(-1 * (var(--dyn-gap) / 2) - (var(--dyn-hit) / 2)) !important;
@@ -133,324 +91,337 @@
   .dynFlex{ --dyn-basis: 100% !important; }
 }
 `.trim();
-    function ensureStyle(doc) {
-        try {
-            if (!doc || !doc.documentElement) return;
-            if (doc.getElementById(STYLE_ID)) return;
-            const st = doc.createElement("style");
-            st.id = STYLE_ID;
-            st.textContent = CSS;
-            (doc.head || doc.documentElement).appendChild(st);
-        } catch (e) {}
-    }
-    // =========================================================
-    // Theme Accent Update (ROOT + CONTENT)
-    // =========================================================
-    function pickAccentFrom(doc) {
-        try {
-            const win = doc.defaultView || window;
-            const cs = win.getComputedStyle(doc.documentElement);
-            const vars = [
-                "--lia-accent",
-                "--lia-primary",
-                "--lia-color-primary",
-                "--primary",
-                "--color-primary",
-                "--accent-color"
-            ];
-            for (const v of vars){
-                const val = cs.getPropertyValue(v).trim();
-                if (val) return val;
-            }
-            const a = doc.querySelector("a");
-            if (a) {
-                const c = win.getComputedStyle(a).color;
-                if (c && c !== "rgba(0, 0, 0, 0)") return c;
-            }
-            const b = doc.querySelector(".lia-btn");
-            if (b) {
-                const bg = win.getComputedStyle(b).backgroundColor;
-                if (bg && bg !== "rgba(0, 0, 0, 0)") return bg;
-            }
-        } catch (e) {}
-        return "";
-    }
+function $1385bbac798b6a24$export$b9324dd3ed41badd(doc) {
+    try {
+        if (!doc?.documentElement) return;
+        if (doc.getElementById($1385bbac798b6a24$var$STYLE_ID)) return;
+        const st = doc.createElement("style");
+        st.id = $1385bbac798b6a24$var$STYLE_ID;
+        st.textContent = $1385bbac798b6a24$var$CSS;
+        (doc.head || doc.documentElement).appendChild(st);
+    } catch (_) {}
+}
+
+
+const $67d8bd73256b8650$var$THEME_VARS = [
+    "--lia-accent",
+    "--lia-primary",
+    "--lia-color-primary",
+    "--primary",
+    "--color-primary",
+    "--accent-color"
+];
+const $67d8bd73256b8650$var$DEFAULT_ACCENT = "#0b5fff";
+function $67d8bd73256b8650$var$pickAccent(doc) {
+    try {
+        const win = doc.defaultView || window;
+        const cs = win.getComputedStyle(doc.documentElement);
+        for (const v of $67d8bd73256b8650$var$THEME_VARS){
+            const val = cs.getPropertyValue(v).trim();
+            if (val) return val;
+        }
+        const a = doc.querySelector("a");
+        if (a) {
+            const c = win.getComputedStyle(a).color;
+            if (c && c !== "rgba(0, 0, 0, 0)") return c;
+        }
+        const b = doc.querySelector(".lia-btn");
+        if (b) {
+            const bg = win.getComputedStyle(b).backgroundColor;
+            if (bg && bg !== "rgba(0, 0, 0, 0)") return bg;
+        }
+    } catch (_) {}
+    return "";
+}
+function $67d8bd73256b8650$var$applyAccent(doc, accent) {
+    try {
+        doc.documentElement.style.setProperty("--dynflex-accent", accent);
+    } catch (_) {}
+}
+function $67d8bd73256b8650$export$3d687a15f750108a(rootDoc, contentDoc) {
     let lastAccent = "";
-    function updateAccent(force) {
-        const acc = pickAccentFrom(ROOT_DOC) || pickAccentFrom(CONTENT_DOC) || "#0b5fff";
+    function update(force = false) {
+        const acc = $67d8bd73256b8650$var$pickAccent(rootDoc) || $67d8bd73256b8650$var$pickAccent(contentDoc) || $67d8bd73256b8650$var$DEFAULT_ACCENT;
         if (force || acc !== lastAccent) {
             lastAccent = acc;
-            try {
-                ROOT_DOC.documentElement.style.setProperty("--dynflex-accent", acc);
-            } catch (e) {}
-            try {
-                CONTENT_DOC.documentElement.style.setProperty("--dynflex-accent", acc);
-            } catch (e) {}
+            $67d8bd73256b8650$var$applyAccent(rootDoc, acc);
+            $67d8bd73256b8650$var$applyAccent(contentDoc, acc);
         }
     }
-    // =========================================================
-    // Leerzeilen -> echte Blocks innerhalb .flex-child
-    // =========================================================
-    function blockifyFlexChild(fc) {
+    function observe(rootWin) {
+        const mo = new MutationObserver(()=>update());
+        const cfg = {
+            attributes: true,
+            attributeFilter: [
+                "class",
+                "style",
+                "data-theme",
+                "data-mode",
+                "data-color-scheme"
+            ]
+        };
         try {
-            if (!fc || fc.nodeType !== 1) return;
-            if (fc.dataset.dynflexBlockified === "1") return;
-            // Wenn LiaScript schon Inputs/Buttons gerendert hat, fassen wir NICHT mehr an
-            if (fc.querySelector("input, textarea, select, button, .lia-btn, .lia-quiz")) return;
-            // Ohne [[...]] macht Split keinen Sinn
-            const html = fc.innerHTML || "";
-            if (html.indexOf("[[") === -1) {
-                fc.dataset.dynflexBlockified = "1";
-                return;
-            }
-            // Split auf Leerzeilen (mind. eine echte Leerzeile = Absatz in Markdown)
-            const parts = html.split(/\n[ \t]*\n+/);
-            if (!parts || parts.length <= 1) {
-                fc.dataset.dynflexBlockified = "1";
-                return;
-            }
-            // Nur wenn wirklich "inhaltliche" Teile existieren
-            const cleaned = parts.filter((p)=>p.replace(/\s+/g, "").length > 0);
-            if (cleaned.length <= 1) {
-                fc.dataset.dynflexBlockified = "1";
-                return;
-            }
-            // Neu aufbauen: pro Absatz ein eigener Block (ohne Zusatz-Klassen, nur data-Attr)
-            fc.innerHTML = "";
-            for (const part of cleaned){
-                const d = CONTENT_DOC.createElement("div");
-                d.setAttribute("data-dynflex-block", "1");
-                d.innerHTML = part;
-                fc.appendChild(d);
-            }
-            fc.dataset.dynflexBlockified = "1";
-        } catch (e) {}
-    }
-    function blockifyAll(doc) {
+            mo.observe(rootDoc.documentElement, cfg);
+        } catch (_) {}
         try {
-            doc.querySelectorAll(".dynFlex .flex-child").forEach(blockifyFlexChild);
-        } catch (e) {}
+            mo.observe(contentDoc.documentElement, cfg);
+        } catch (_) {}
+        try {
+            const mql = rootWin.matchMedia("(prefers-color-scheme: dark)");
+            const handler = ()=>update(true);
+            if (mql.addEventListener) mql.addEventListener("change", handler);
+            else if (mql.addListener) mql.addListener(handler);
+        } catch (_) {}
     }
-    // =========================================================
-    // DynFlex Core
-    // =========================================================
-    const clamp = (x, a, b)=>Math.min(b, Math.max(a, x));
-    function parsePct(x, fallback) {
-        if (x == null) return fallback;
-        const s = String(x).trim();
-        if (!s) return fallback;
-        const n = Number(s.replace("%", ""));
-        return Number.isFinite(n) ? n : fallback;
+    return {
+        update: update,
+        observe: observe
+    };
+}
+
+
+const $34de0361b1c4c74d$var$PREFIX = "dynFlexWidths::";
+function $34de0361b1c4c74d$export$7300864b179c42a(key, widths) {
+    try {
+        localStorage.setItem($34de0361b1c4c74d$var$PREFIX + key, JSON.stringify(widths));
+    } catch (_) {}
+}
+function $34de0361b1c4c74d$export$874f9d0b0b7048d(key) {
+    try {
+        const raw = localStorage.getItem($34de0361b1c4c74d$var$PREFIX + key);
+        if (!raw) return null;
+        const data = JSON.parse(raw);
+        return Array.isArray(data) ? data : null;
+    } catch (_) {
+        return null;
     }
-    function getItemPct(container, item) {
+}
+
+
+const $33087b216e99876d$var$clamp = (x, a, b)=>Math.min(b, Math.max(a, x));
+function $33087b216e99876d$var$parsePct(x, fallback) {
+    if (!x) return fallback;
+    const n = Number(x.trim().replace("%", ""));
+    return Number.isFinite(n) ? n : fallback;
+}
+function $33087b216e99876d$var$ensurePx(v) {
+    const t = v.trim();
+    return t.endsWith("px") ? t : t + "px";
+}
+// ── Blockify ──────────────────────────────────────────────────────────────────
+function $33087b216e99876d$var$blockifyFlexChild(fc, doc) {
+    if (fc.dataset.dynflexBlockified === "1") return;
+    if (fc.querySelector("input, textarea, select, button, .lia-btn, .lia-quiz")) return;
+    const html = fc.innerHTML || "";
+    if (!html.includes("[[")) {
+        fc.dataset.dynflexBlockified = "1";
+        return;
+    }
+    const parts = html.split(/\n[ \t]*\n+/).filter((p)=>p.replace(/\s+/g, "").length > 0);
+    if (parts.length <= 1) {
+        fc.dataset.dynflexBlockified = "1";
+        return;
+    }
+    fc.innerHTML = "";
+    for (const part of parts){
+        const d = doc.createElement("div");
+        d.setAttribute("data-dynflex-block", "1");
+        d.innerHTML = part;
+        fc.appendChild(d);
+    }
+    fc.dataset.dynflexBlockified = "1";
+}
+function $33087b216e99876d$var$blockifyAll(container, doc) {
+    try {
+        container.querySelectorAll(".flex-child").forEach((fc)=>{
+            if (fc.closest(".dynFlex") === container) $33087b216e99876d$var$blockifyFlexChild(fc, doc);
+        });
+    } catch (_) {}
+}
+// ── Resizer ───────────────────────────────────────────────────────────────────
+function $33087b216e99876d$var$bindResizer(rz, container, item, cfg, onSave) {
+    if (rz.dataset.bound === "1") return;
+    rz.dataset.bound = "1";
+    let dragging = false, startX = 0, startW = 0;
+    const getW = ()=>{
         const w = item.style.getPropertyValue("--w").trim();
         if (w.endsWith("%")) {
             const n = parseFloat(w);
             if (Number.isFinite(n)) return n;
         }
         const cw = container.getBoundingClientRect().width || 1;
-        const iw = item.getBoundingClientRect().width;
-        return iw / cw * 100;
-    }
-    function setItemPct(item, pct) {
-        item.style.setProperty("--w", pct.toFixed(2) + "%");
-    }
-    function getStoreKey(container) {
-        const k = container.getAttribute("data-store");
-        return k ? "dynFlexWidths::" + k : null;
-    }
-    function persist(container, items) {
-        const lsKey = getStoreKey(container);
-        if (!lsKey) return;
-        const arr = items.map((it)=>it.style.getPropertyValue("--w").trim() || "");
+        return item.getBoundingClientRect().width / cw * 100;
+    };
+    const onDown = (e)=>{
+        dragging = true;
+        container.classList.add("dynFlexDragging");
+        startX = e.clientX;
+        startW = getW();
+        rz.setPointerCapture?.(e.pointerId);
+        e.preventDefault();
+    };
+    const onMove = (e)=>{
+        if (!dragging) return;
+        const cw = container.getBoundingClientRect().width || 1;
+        const newW = $33087b216e99876d$var$clamp(startW + (e.clientX - startX) / cw * 100, cfg.min, cfg.max);
+        item.style.setProperty("--w", newW.toFixed(2) + "%");
+        onSave();
+        e.preventDefault();
+    };
+    const onUp = (e)=>{
+        dragging = false;
+        container.classList.remove("dynFlexDragging");
         try {
-            localStorage.setItem(lsKey, JSON.stringify(arr));
-        } catch (e) {}
+            rz.releasePointerCapture?.(e.pointerId);
+        } catch (_) {}
+        e.preventDefault();
+    };
+    rz.addEventListener("pointerdown", onDown);
+    rz.addEventListener("pointermove", onMove);
+    rz.addEventListener("pointerup", onUp);
+    rz.addEventListener("pointercancel", onUp);
+}
+// ── Container init ────────────────────────────────────────────────────────────
+function $33087b216e99876d$var$getDirectItems(container) {
+    const flexChildren = Array.from(container.querySelectorAll(".flex-child")).filter((fc)=>fc.closest(".dynFlex") === container);
+    if (!flexChildren.length) return [];
+    const items = [];
+    for (const fc of flexChildren){
+        let it = fc;
+        while(it && it.parentElement && it.parentElement !== container)it = it.parentElement;
+        if (it && it.parentElement === container && !items.includes(it)) items.push(it);
     }
-    function restore(container, items) {
-        const lsKey = getStoreKey(container);
-        if (!lsKey) return;
+    return items;
+}
+function $33087b216e99876d$export$57d319145ef8fcba(container, doc) {
+    const el = container;
+    const cfg = {
+        gap: el.getAttribute("data-gap") ? $33087b216e99876d$var$ensurePx(el.getAttribute("data-gap")) : "20px",
+        hit: el.getAttribute("data-hit") ? $33087b216e99876d$var$ensurePx(el.getAttribute("data-hit")) : "22px",
+        basis: $33087b216e99876d$var$parsePct(el.getAttribute("data-basis"), 25),
+        min: $33087b216e99876d$var$parsePct(el.getAttribute("data-min"), 10),
+        max: $33087b216e99876d$var$parsePct(el.getAttribute("data-max"), 100),
+        store: el.getAttribute("data-store") || undefined
+    };
+    el.style.setProperty("--dyn-gap", cfg.gap);
+    el.style.setProperty("--dyn-hit", cfg.hit);
+    el.style.setProperty("--dyn-basis", cfg.basis + "%");
+    $33087b216e99876d$var$blockifyAll(container, doc);
+    const items = $33087b216e99876d$var$getDirectItems(container);
+    if (!items.length) return;
+    items.forEach((it)=>it.classList.add("dynFlexItem"));
+    // Restore stored widths
+    if (cfg.store) {
         const anySet = items.some((it)=>it.style.getPropertyValue("--w").trim());
-        if (anySet) return;
-        let arr = null;
+        if (!anySet) {
+            const stored = (0, $34de0361b1c4c74d$export$874f9d0b0b7048d)(cfg.store);
+            if (stored && stored.length === items.length) items.forEach((it, i)=>{
+                const w = (stored[i] || "").trim();
+                if (w.endsWith("%")) it.style.setProperty("--w", w);
+            });
+        }
+    }
+    const persist = ()=>{
+        if (cfg.store) (0, $34de0361b1c4c74d$export$7300864b179c42a)(cfg.store, items.map((it)=>it.style.getPropertyValue("--w").trim() || ""));
+    };
+    items.forEach((item, i)=>{
+        let rz = item.querySelector(":scope > .dynFlexResizer");
+        if (!rz) {
+            rz = document.createElement("div");
+            rz.className = "dynFlexResizer";
+            rz.setAttribute("aria-hidden", "true");
+            item.appendChild(rz);
+        }
+        if (i === items.length - 1) rz.classList.add("dynFlexResizerEnd");
+        else rz.classList.remove("dynFlexResizerEnd");
+        $33087b216e99876d$var$bindResizer(rz, container, item, cfg, persist);
+    });
+}
+
+
+const $882b6d93070905b3$var$REGISTRY_KEY = "__LIA_DYNFLEX_V1_0__";
+const $882b6d93070905b3$var$DOC_KEY_ATTR = "data-dynflex-doc";
+(function() {
+    // ── Window context ──────────────────────────────────────────────────────────
+    function getRootWindow() {
+        let w = window;
         try {
-            arr = JSON.parse(localStorage.getItem(lsKey) || "null");
-        } catch (e) {
-            arr = null;
-        }
-        if (!Array.isArray(arr)) return;
-        if (arr.length !== items.length) return;
-        items.forEach((it, i)=>{
-            const v = String(arr[i] || "").trim();
-            if (v.endsWith("%")) it.style.setProperty("--w", v);
-        });
+            while(w.parent && w.parent !== w)w = w.parent;
+        } catch (_) {}
+        return w;
     }
-    // Items deterministisch aus .flex-child ableiten (wrapper-robust)
-    function getItemsFromFlexChildren(container) {
-        const flexChildren = Array.from(container.querySelectorAll(".flex-child")).filter((fc)=>fc.closest(".dynFlex") === container);
-        if (!flexChildren.length) return [];
-        const items = [];
-        for (const fc of flexChildren){
-            let it = fc;
-            while(it && it.parentElement && it.parentElement !== container)it = it.parentElement;
-            if (it && it.parentElement === container) {
-                if (!items.includes(it)) items.push(it);
-            }
-        }
-        return items;
+    const rootWin = getRootWindow();
+    const rootDoc = rootWin.document;
+    const contentDoc = document;
+    // ── Run-once guard ──────────────────────────────────────────────────────────
+    rootWin[$882b6d93070905b3$var$REGISTRY_KEY] = rootWin[$882b6d93070905b3$var$REGISTRY_KEY] || {
+        docs: {}
+    };
+    let docKey = contentDoc.documentElement.getAttribute($882b6d93070905b3$var$DOC_KEY_ATTR);
+    if (!docKey) {
+        docKey = (contentDoc.baseURI || window.location.href || "dynflex") + "::" + Math.random().toString(36).slice(2);
+        contentDoc.documentElement.setAttribute($882b6d93070905b3$var$DOC_KEY_ATTR, docKey);
     }
-    function ensureResizerBound(rz, container, item, items, minPct, maxPct) {
-        if (rz.dataset.bound === "1") return;
-        rz.dataset.bound = "1";
-        let dragging = false;
-        let startX = 0;
-        let startW = 0;
-        const onDown = (e)=>{
-            dragging = true;
-            container.classList.add("dynFlexDragging");
-            startX = e.clientX;
-            startW = getItemPct(container, item);
-            rz.setPointerCapture?.(e.pointerId);
-            e.preventDefault();
-        };
-        const onMove = (e)=>{
-            if (!dragging) return;
-            const cw = container.getBoundingClientRect().width || 1;
-            const dx = e.clientX - startX;
-            const dPct = dx / cw * 100;
-            const newW = clamp(startW + dPct, minPct, maxPct);
-            setItemPct(item, newW);
-            persist(container, items);
-            e.preventDefault();
-        };
-        const onUp = (e)=>{
-            dragging = false;
-            container.classList.remove("dynFlexDragging");
-            try {
-                rz.releasePointerCapture?.(e.pointerId);
-            } catch (_) {}
-            e.preventDefault();
-        };
-        rz.addEventListener("pointerdown", onDown);
-        rz.addEventListener("pointermove", onMove);
-        rz.addEventListener("pointerup", onUp);
-        rz.addEventListener("pointercancel", onUp);
-    }
-    function initContainer(container) {
-        // config
-        const gap = container.getAttribute("data-gap");
-        const hit = container.getAttribute("data-hit");
-        const basis = parsePct(container.getAttribute("data-basis"), 25);
-        if (gap) container.style.setProperty("--dyn-gap", gap.trim().endsWith("px") ? gap.trim() : gap.trim() + "px");
-        if (hit) container.style.setProperty("--dyn-hit", hit.trim().endsWith("px") ? hit.trim() : hit.trim() + "px");
-        container.style.setProperty("--dyn-basis", basis + "%");
-        const minPct = parsePct(container.getAttribute("data-min"), 10);
-        const maxPct = parsePct(container.getAttribute("data-max"), 100);
-        const items = getItemsFromFlexChildren(container);
-        if (!items.length) return;
-        items.forEach((it)=>it.classList.add("dynFlexItem"));
-        restore(container, items);
-        for(let i = 0; i < items.length; i++){
-            const item = items[i];
-            let rz = item.querySelector(":scope > .dynFlexResizer");
-            if (!rz) {
-                rz = document.createElement("div");
-                rz.className = "dynFlexResizer";
-                rz.setAttribute("aria-hidden", "true");
-                item.appendChild(rz);
-            }
-            if (i === items.length - 1) rz.classList.add("dynFlexResizerEnd");
-            else rz.classList.remove("dynFlexResizerEnd");
-            ensureResizerBound(rz, container, item, items, minPct, maxPct);
-        }
-    }
-    function scanInDoc(doc) {
+    if (rootWin[$882b6d93070905b3$var$REGISTRY_KEY].docs[docKey]) return;
+    rootWin[$882b6d93070905b3$var$REGISTRY_KEY].docs[docKey] = true;
+    // ── Style + theme ───────────────────────────────────────────────────────────
+    (0, $1385bbac798b6a24$export$b9324dd3ed41badd)(rootDoc);
+    (0, $1385bbac798b6a24$export$b9324dd3ed41badd)(contentDoc);
+    const theme = (0, $67d8bd73256b8650$export$3d687a15f750108a)(rootDoc, contentDoc);
+    theme.update(true);
+    theme.observe(rootWin);
+    // ── Scan ────────────────────────────────────────────────────────────────────
+    const initialized = new WeakSet();
+    function scanDoc(doc) {
         try {
-            // 1) Leerzeilen zuerst in Blocks übersetzen (wichtig für mehrere Prüfen-Buttons)
-            blockifyAll(doc);
-            // 2) DynFlex initialisieren
-            doc.querySelectorAll(".dynFlex").forEach(initContainer);
-        } catch (e) {}
+            doc.querySelectorAll(".dynFlex").forEach((el)=>{
+                if (!initialized.has(el)) {
+                    initialized.add(el);
+                    (0, $33087b216e99876d$export$57d319145ef8fcba)(el, doc);
+                }
+            });
+        } catch (_) {}
     }
-    // =========================================================
-    // ensure/scan (throttled) + observers
-    // =========================================================
-    let scanScheduled = false;
     function scan() {
-        scanScheduled = false;
-        ensureStyle(ROOT_DOC);
-        ensureStyle(CONTENT_DOC);
-        updateAccent(false);
-        scanInDoc(ROOT_DOC);
-        scanInDoc(CONTENT_DOC);
+        (0, $1385bbac798b6a24$export$b9324dd3ed41badd)(rootDoc);
+        (0, $1385bbac798b6a24$export$b9324dd3ed41badd)(contentDoc);
+        theme.update(false);
+        scanDoc(rootDoc);
+        scanDoc(contentDoc);
     }
-    function scheduleScan() {
-        if (scanScheduled) return;
-        scanScheduled = true;
-        requestAnimationFrame(scan);
-    }
-    // Initial: sehr früh + mehrere Nachläufe
-    ensureStyle(ROOT_DOC);
-    ensureStyle(CONTENT_DOC);
-    updateAccent(true);
-    // einmal sofort + dann noch gestaffelt
+    // Initial scans (staggered for late-rendering content)
     scan();
-    scheduleScan();
-    setTimeout(scheduleScan, 30);
-    setTimeout(scheduleScan, 120);
-    setTimeout(scheduleScan, 320);
-    setTimeout(scheduleScan, 900);
-    // Theme changes
-    const themeMO = new MutationObserver(()=>updateAccent(false));
-    try {
-        themeMO.observe(ROOT_DOC.documentElement, {
-            attributes: true,
-            attributeFilter: [
-                "class",
-                "style",
-                "data-theme",
-                "data-mode",
-                "data-color-scheme"
-            ]
+    [
+        30,
+        120,
+        320,
+        900
+    ].forEach((ms)=>setTimeout(scan, ms));
+    // ── DOM observer ────────────────────────────────────────────────────────────
+    let scheduled = false;
+    function scheduleScan() {
+        if (scheduled) return;
+        scheduled = true;
+        requestAnimationFrame(()=>{
+            scheduled = false;
+            scan();
         });
-    } catch (e) {}
-    try {
-        themeMO.observe(CONTENT_DOC.documentElement, {
-            attributes: true,
-            attributeFilter: [
-                "class",
-                "style",
-                "data-theme",
-                "data-mode",
-                "data-color-scheme"
-            ]
-        });
-    } catch (e) {}
-    // OS scheme
-    try {
-        const mql = ROOT_WIN.matchMedia("(prefers-color-scheme: dark)");
-        if (mql && mql.addEventListener) mql.addEventListener("change", ()=>updateAccent(true));
-        else if (mql.addListener) mql.addListener(()=>updateAccent(true));
-    } catch (e) {}
-    // DOM changes (throttled)
+    }
     const mo = new MutationObserver((muts)=>{
-        for (const m of muts)if (m.addedNodes && m.addedNodes.length) {
-            scheduleScan();
-            break;
-        }
+        if (muts.some((m)=>m.addedNodes.length)) scheduleScan();
     });
     try {
-        mo.observe(CONTENT_DOC.documentElement, {
+        mo.observe(contentDoc.documentElement, {
             childList: true,
             subtree: true
         });
-    } catch (e) {}
+    } catch (_) {}
     try {
-        mo.observe(ROOT_DOC.documentElement, {
+        mo.observe(rootDoc.documentElement, {
             childList: true,
             subtree: true
         });
-    } catch (e) {}
+    } catch (_) {}
 })();
 
 
