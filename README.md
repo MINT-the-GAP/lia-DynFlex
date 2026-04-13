@@ -24,15 +24,11 @@ https://github.com/MINT-the-GAP/lia-DynFlex
            {{1}}
 1. Load the macros via
 
-   ```markdown
-   import: https://raw.githubusercontent.com/MINT-the-GAP/lia-DynFlex/main/README.md
-   ```
+   `import: https://raw.githubusercontent.com/MINT-the-GAP/lia-DynFlex/main/README.md`
 
    or pin to a specific version:
 
-   ```markdown
-   import: https://raw.githubusercontent.com/MINT-the-GAP/lia-DynFlex/0.0.1/README.md
-   ```
+   `import: https://raw.githubusercontent.com/MINT-the-GAP/lia-DynFlex/0.0.1/README.md`
 
 2. Copy the definitions into your project
 
