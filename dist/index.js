@@ -359,7 +359,7 @@ const $882b6d93070905b3$var$DOC_KEY_ATTR = "data-dynflex-doc";
     };
     let docKey = contentDoc.documentElement.getAttribute($882b6d93070905b3$var$DOC_KEY_ATTR);
     if (!docKey) {
-        docKey = (contentDoc.baseURI || window.location.href || "dynflex") + "::" + Math.random().toString(36).slice(2);
+        docKey = (contentDoc.baseURI || "dynflex") + "::" + Math.random().toString(36).slice(2);
         contentDoc.documentElement.setAttribute($882b6d93070905b3$var$DOC_KEY_ATTR, docKey);
     }
     if (rootWin[$882b6d93070905b3$var$REGISTRY_KEY].docs[docKey]) return;
@@ -383,8 +383,6 @@ const $882b6d93070905b3$var$DOC_KEY_ATTR = "data-dynflex-doc";
         } catch (_) {}
     }
     function scan() {
-        (0, $1385bbac798b6a24$export$b9324dd3ed41badd)(rootDoc);
-        (0, $1385bbac798b6a24$export$b9324dd3ed41badd)(contentDoc);
         theme.update(false);
         scanDoc(rootDoc);
         scanDoc(contentDoc);

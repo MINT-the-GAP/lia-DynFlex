@@ -22,7 +22,7 @@ const DOC_KEY_ATTR = "data-dynflex-doc";
 
   let docKey = contentDoc.documentElement.getAttribute(DOC_KEY_ATTR);
   if (!docKey) {
-    docKey = (contentDoc.baseURI || window.location.href || "dynflex") + "::" + Math.random().toString(36).slice(2);
+    docKey = (contentDoc.baseURI || "dynflex") + "::" + Math.random().toString(36).slice(2);
     contentDoc.documentElement.setAttribute(DOC_KEY_ATTR, docKey);
   }
   if ((rootWin as any)[REGISTRY_KEY].docs[docKey]) return;
@@ -51,8 +51,6 @@ const DOC_KEY_ATTR = "data-dynflex-doc";
   }
 
   function scan(): void {
-    ensureStyle(rootDoc);
-    ensureStyle(contentDoc);
     theme.update(false);
     scanDoc(rootDoc);
     scanDoc(contentDoc);
