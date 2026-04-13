@@ -103,19 +103,20 @@ function bindResizer(
 
 // ── Container init ────────────────────────────────────────────────────────────
 
-function getDirectItems(container: Element): HTMLElement[] {
-  const flexChildren = Array.from(container.querySelectorAll(".flex-child"))
-    .filter(fc => fc.closest(".dynFlex") === container);
-  if (!flexChildren.length) return [];
+function directChildOf(container: Element, node: Element): HTMLElement | null {
+  let it: Element | null = node;
+  while (it && it.parentElement !== container) it = it.parentElement;
+  return (it && it.parentElement === container) ? it as HTMLElement : null;
+}
 
-  const items: HTMLElement[] = [];
-  for (const fc of flexChildren) {
-    let it: Element | null = fc;
-    while (it && it.parentElement && it.parentElement !== container) it = it.parentElement;
-    if (it && it.parentElement === container && !items.includes(it as HTMLElement))
-      items.push(it as HTMLElement);
-  }
-  return items;
+function getDirectItems(container: Element): HTMLElement[] {
+  const seen = new Set<HTMLElement>();
+  container.querySelectorAll(".flex-child").forEach(fc => {
+    if (fc.closest(".dynFlex") !== container) return;
+    const it = directChildOf(container, fc);
+    if (it) seen.add(it);
+  });
+  return [...seen];
 }
 
 export function initContainer(container: Element, doc: Document): void {

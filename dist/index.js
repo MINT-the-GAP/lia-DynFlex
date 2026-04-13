@@ -282,16 +282,21 @@ function $33087b216e99876d$var$bindResizer(rz, container, item, cfg, onSave) {
     rz.addEventListener("pointercancel", onUp);
 }
 // ── Container init ────────────────────────────────────────────────────────────
+function $33087b216e99876d$var$directChildOf(container, node) {
+    let it = node;
+    while(it && it.parentElement !== container)it = it.parentElement;
+    return it && it.parentElement === container ? it : null;
+}
 function $33087b216e99876d$var$getDirectItems(container) {
-    const flexChildren = Array.from(container.querySelectorAll(".flex-child")).filter((fc)=>fc.closest(".dynFlex") === container);
-    if (!flexChildren.length) return [];
-    const items = [];
-    for (const fc of flexChildren){
-        let it = fc;
-        while(it && it.parentElement && it.parentElement !== container)it = it.parentElement;
-        if (it && it.parentElement === container && !items.includes(it)) items.push(it);
-    }
-    return items;
+    const seen = new Set();
+    container.querySelectorAll(".flex-child").forEach((fc)=>{
+        if (fc.closest(".dynFlex") !== container) return;
+        const it = $33087b216e99876d$var$directChildOf(container, fc);
+        if (it) seen.add(it);
+    });
+    return [
+        ...seen
+    ];
 }
 function $33087b216e99876d$export$57d319145ef8fcba(container, doc) {
     const el = container;
