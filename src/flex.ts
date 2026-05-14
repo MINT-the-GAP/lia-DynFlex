@@ -159,8 +159,40 @@ export function initContainer(container: Element, doc: Document): void {
     }
   }
 
+  // On first visit (no stored widths set), distribute all children evenly
+  // so they fill 100% of the container width. Uses a CSS calc() expression so
+  // no pixel measurements are needed and it stays correct on resize.
+  // calc() values are never persisted (only "xx.xx%" values from dragging are
+  // saved), so the even distribution is re-applied on every visit until the
+  // user adjusts widths by dragging.
+  const anyWidthSet = items.some(it => it.style.getPropertyValue("--w").trim());
+  if (!anyWidthSet) {
+    const n = items.length;
+    const evenWidth = n <= 1
+      ? "100%"
+      : `calc((100% - ${n - 1} * ${cfg.gap}) / ${n})`;
+    items.forEach(it => it.style.setProperty("--w", evenWidth));
+  }
+
   const persist = () => {
-    if (cfg.store) saveWidths(cfg.store, items.map(it => it.style.getPropertyValue("--w").trim() || ""));
+    if (!cfg.store) return;
+    // Before saving, resolve any non-% widths (e.g. calc() from initial even
+    // distribution) to actual rendered percentages.  This "locks in" the
+    // implicit widths the moment the user first drags any resizer, so that on
+    // the next slide visit all items are restored to the correct sizes.
+    const cw = container.getBoundingClientRect().width;
+    if (cw > 0) {
+      items.forEach(it => {
+        const w = it.style.getPropertyValue("--w").trim();
+        if (!w.endsWith("%")) {
+          const actual = (it.getBoundingClientRect().width / cw) * 100;
+          if (Number.isFinite(actual) && actual > 0) {
+            it.style.setProperty("--w", actual.toFixed(2) + "%");
+          }
+        }
+      });
+    }
+    saveWidths(cfg.store, items.map(it => it.style.getPropertyValue("--w").trim() || ""));
   };
 
   items.forEach((item, i) => {
