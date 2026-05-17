@@ -330,7 +330,8 @@ function $33087b216e99876d$export$57d319145ef8fcba(container, doc) {
     const anyWidthSet = items.some((it)=>it.style.getPropertyValue("--w").trim());
     if (!anyWidthSet) {
         const n = items.length;
-        const evenWidth = n <= 1 ? "100%" : `calc((100% - ${n - 1} * ${cfg.gap}) / ${n})`;
+        const perRow = Math.min(n, 3);
+        const evenWidth = perRow <= 1 ? "100%" : `calc((100% - ${perRow - 1} * ${cfg.gap}) / ${perRow})`;
         items.forEach((it)=>it.style.setProperty("--w", evenWidth));
     }
     const persist = ()=>{

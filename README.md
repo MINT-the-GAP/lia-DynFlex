@@ -91,6 +91,24 @@ Magna aliqua ut enim ad minim veniam.
 
 </div>
 
+<div class="flex-child">
+
+Content C
+
+</div>
+
+<div class="flex-child">
+
+Content C
+
+</div>
+
+<div class="flex-child">
+
+Content C
+
+</div>
+
 </section>
 
 ## Interactive Quiz Example

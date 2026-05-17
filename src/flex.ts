@@ -168,9 +168,10 @@ export function initContainer(container: Element, doc: Document): void {
   const anyWidthSet = items.some(it => it.style.getPropertyValue("--w").trim());
   if (!anyWidthSet) {
     const n = items.length;
-    const evenWidth = n <= 1
+    const perRow = Math.min(n, 3);
+    const evenWidth = perRow <= 1
       ? "100%"
-      : `calc((100% - ${n - 1} * ${cfg.gap}) / ${n})`;
+      : `calc((100% - ${perRow - 1} * ${cfg.gap}) / ${perRow})`;
     items.forEach(it => it.style.setProperty("--w", evenWidth));
   }
 
