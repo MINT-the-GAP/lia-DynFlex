@@ -7,10 +7,49 @@ const DOC_KEY_ATTR = "data-dynflex-doc";
 
 (function () {
   // ── Window context ──────────────────────────────────────────────────────────
+  function isLiaScriptHost(win: Window): boolean {
+    try {
+      return !!win.document.querySelector(
+        "#lia-toolbar-nav, header.lia-header, .lia-canvas"
+      );
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function isLiveEditorPreview(win: Window): boolean {
+    try {
+      return (win.frameElement as HTMLElement | null)?.id === "liascript-preview";
+    } catch (_) {
+      return false;
+    }
+  }
+
   function getRootWindow(): Window {
-    let w: Window = window;
-    try { while (w.parent && w.parent !== w) w = w.parent; } catch (_) {}
-    return w;
+    const contentWindow: Window = window;
+    let candidate: Window = contentWindow;
+
+    while (true) {
+      // Nested courses and LiveEditor previews are complete LiaScript hosts.
+      // Keep styles, observers, and the registry inside the nearest host
+      // instead of leaking into a surrounding course or editor.
+      if (isLiveEditorPreview(candidate) || isLiaScriptHost(candidate)) {
+        return candidate;
+      }
+
+      try {
+        const parent = candidate.parent;
+        if (!parent || parent === candidate) return contentWindow;
+
+        // Validate access before advancing. Otherwise a cross-origin LMS host
+        // becomes the selected root and rootWin.document below throws before
+        // DynFlex can inject styles or initialize any container.
+        void parent.document;
+        candidate = parent;
+      } catch (_) {
+        return contentWindow;
+      }
+    }
   }
 
   const rootWin  = getRootWindow();
