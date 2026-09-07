@@ -95,6 +95,7 @@ function bindResizer(
   const onUp = (e: PointerEvent) => {
     dragging = false;
     container.classList.remove("dynFlexDragging");
+    // Throws if the pointer was already released (e.g. cancel after up).
     try { rz.releasePointerCapture?.(e.pointerId); } catch (_) {}
     e.preventDefault();
   };
@@ -199,7 +200,9 @@ export function initContainer(container: Element, doc: Document): void {
   items.forEach((item, i) => {
     let rz = item.querySelector<HTMLElement>(":scope > .dynFlexResizer");
     if (!rz) {
-      rz = document.createElement("div");
+      // Use the container's own document: nested courses and LiveEditor
+      // previews initialize elements that do not belong to the global one.
+      rz = doc.createElement("div");
       rz.className = "dynFlexResizer";
       rz.setAttribute("aria-hidden", "true");
       item.appendChild(rz);

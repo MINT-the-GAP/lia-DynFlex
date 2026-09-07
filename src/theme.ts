@@ -47,15 +47,21 @@ export function makeThemeManager(rootDoc: Document, contentDoc: Document) {
     }
   }
 
-  function observe(rootWin: Window): void {
+  // Watch for theme switches so the accent follows the host. Both the observer
+  // and the media-query listener are tied to `signal` so a single abort() on
+  // teardown releases everything.
+  function observe(rootWin: Window, signal: AbortSignal): void {
     const mo = new MutationObserver(() => update());
     const cfg = { attributes: true, attributeFilter: ["class", "style", "data-theme", "data-mode", "data-color-scheme"] };
     try { mo.observe(rootDoc.documentElement, cfg); } catch (_) {}
     try { mo.observe(contentDoc.documentElement, cfg); } catch (_) {}
+    signal.addEventListener("abort", () => mo.disconnect(), { once: true });
+
     try {
       const mql = rootWin.matchMedia("(prefers-color-scheme: dark)");
-      const handler = () => update(true);
-      if (mql.addEventListener) mql.addEventListener("change", handler);
+      if (mql.addEventListener) {
+        mql.addEventListener("change", () => update(true), { signal });
+      }
     } catch (_) {}
   }
 

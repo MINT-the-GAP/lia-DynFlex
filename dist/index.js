@@ -148,7 +148,10 @@ function $67d8bd73256b8650$export$3d687a15f750108a(rootDoc, contentDoc) {
             $67d8bd73256b8650$var$applyAccent(contentDoc, acc);
         }
     }
-    function observe(rootWin) {
+    // Watch for theme switches so the accent follows the host. Both the observer
+    // and the media-query listener are tied to `signal` so a single abort() on
+    // teardown releases everything.
+    function observe(rootWin, signal) {
         const mo = new MutationObserver(()=>update());
         const cfg = {
             attributes: true,
@@ -166,10 +169,14 @@ function $67d8bd73256b8650$export$3d687a15f750108a(rootDoc, contentDoc) {
         try {
             mo.observe(contentDoc.documentElement, cfg);
         } catch (_) {}
+        signal.addEventListener("abort", ()=>mo.disconnect(), {
+            once: true
+        });
         try {
             const mql = rootWin.matchMedia("(prefers-color-scheme: dark)");
-            const handler = ()=>update(true);
-            if (mql.addEventListener) mql.addEventListener("change", handler);
+            if (mql.addEventListener) mql.addEventListener("change", ()=>update(true), {
+                signal: signal
+            });
         } catch (_) {}
     }
     return {
@@ -190,7 +197,10 @@ function $34de0361b1c4c74d$export$874f9d0b0b7048d(key) {
         const raw = localStorage.getItem($34de0361b1c4c74d$var$PREFIX + key);
         if (!raw) return null;
         const data = JSON.parse(raw);
-        return Array.isArray(data) ? data : null;
+        if (!Array.isArray(data)) return null;
+        // A corrupt or colliding key can yield non-strings; callers treat these as
+        // CSS width values, so reject the whole entry rather than restoring junk.
+        return data.every((w)=>typeof w === "string") ? data : null;
     } catch (_) {
         return null;
     }
@@ -266,6 +276,7 @@ function $33087b216e99876d$var$bindResizer(rz, container, item, cfg, onSave) {
     const onUp = (e)=>{
         dragging = false;
         container.classList.remove("dynFlexDragging");
+        // Throws if the pointer was already released (e.g. cancel after up).
         try {
             rz.releasePointerCapture?.(e.pointerId);
         } catch (_) {}
@@ -353,7 +364,9 @@ function $33087b216e99876d$export$57d319145ef8fcba(container, doc) {
     items.forEach((item, i)=>{
         let rz = item.querySelector(":scope > .dynFlexResizer");
         if (!rz) {
-            rz = document.createElement("div");
+            // Use the container's own document: nested courses and LiveEditor
+            // previews initialize elements that do not belong to the global one.
+            rz = doc.createElement("div");
             rz.className = "dynFlexResizer";
             rz.setAttribute("aria-hidden", "true");
             item.appendChild(rz);
@@ -408,22 +421,28 @@ const $882b6d93070905b3$var$DOC_KEY_ATTR = "data-dynflex-doc";
     const rootDoc = rootWin.document;
     const contentDoc = document;
     // ── Run-once guard ──────────────────────────────────────────────────────────
-    rootWin[$882b6d93070905b3$var$REGISTRY_KEY] = rootWin[$882b6d93070905b3$var$REGISTRY_KEY] || {
+    const host = rootWin;
+    const registry = host[$882b6d93070905b3$var$REGISTRY_KEY] || {
         docs: {}
     };
-    let docKey = contentDoc.documentElement.getAttribute($882b6d93070905b3$var$DOC_KEY_ATTR);
-    if (!docKey) {
-        docKey = (contentDoc.baseURI || "dynflex") + "::" + Math.random().toString(36).slice(2);
-        contentDoc.documentElement.setAttribute($882b6d93070905b3$var$DOC_KEY_ATTR, docKey);
-    }
-    if (rootWin[$882b6d93070905b3$var$REGISTRY_KEY].docs[docKey]) return;
-    rootWin[$882b6d93070905b3$var$REGISTRY_KEY].docs[docKey] = true;
+    host[$882b6d93070905b3$var$REGISTRY_KEY] = registry;
+    const existingKey = contentDoc.documentElement.getAttribute($882b6d93070905b3$var$DOC_KEY_ATTR);
+    const docKey = existingKey || (contentDoc.baseURI || "dynflex") + "::" + Math.random().toString(36).slice(2);
+    if (!existingKey) contentDoc.documentElement.setAttribute($882b6d93070905b3$var$DOC_KEY_ATTR, docKey);
+    if (registry.docs[docKey]) return;
+    registry.docs[docKey] = true;
+    // ── Teardown ────────────────────────────────────────────────────────────────
+    // Everything that outlives a single slide hangs off this signal, so unloading
+    // the content document releases the observers and listeners in one abort()
+    // instead of leaving them attached to a document that is no longer rendered.
+    const teardown = new AbortController();
+    const { signal: signal } = teardown;
     // ── Style + theme ───────────────────────────────────────────────────────────
     (0, $1385bbac798b6a24$export$b9324dd3ed41badd)(rootDoc);
     (0, $1385bbac798b6a24$export$b9324dd3ed41badd)(contentDoc);
     const theme = (0, $67d8bd73256b8650$export$3d687a15f750108a)(rootDoc, contentDoc);
     theme.update(true);
-    theme.observe(rootWin);
+    theme.observe(rootWin, signal);
     // ── Scan ────────────────────────────────────────────────────────────────────
     const initialized = new WeakSet();
     function scanDoc(doc) {
@@ -443,20 +462,23 @@ const $882b6d93070905b3$var$DOC_KEY_ATTR = "data-dynflex-doc";
     }
     // Initial scans (staggered for late-rendering content)
     scan();
-    [
+    const timers = [
         30,
         120,
         320,
         900
-    ].forEach((ms)=>setTimeout(scan, ms));
+    ].map((ms)=>setTimeout(scan, ms));
+    signal.addEventListener("abort", ()=>timers.forEach((t)=>clearTimeout(t)), {
+        once: true
+    });
     // ── DOM observer ────────────────────────────────────────────────────────────
     let scheduled = false;
     function scheduleScan() {
-        if (scheduled) return;
+        if (scheduled || signal.aborted) return;
         scheduled = true;
         requestAnimationFrame(()=>{
             scheduled = false;
-            scan();
+            if (!signal.aborted) scan();
         });
     }
     const mo = new MutationObserver((muts)=>{
@@ -474,6 +496,17 @@ const $882b6d93070905b3$var$DOC_KEY_ATTR = "data-dynflex-doc";
             subtree: true
         });
     } catch (_) {}
+    signal.addEventListener("abort", ()=>mo.disconnect(), {
+        once: true
+    });
+    // When the content document goes away, release everything and drop the
+    // registry entry so a fresh document under the same host can initialize.
+    rootWin.addEventListener("pagehide", ()=>{
+        delete registry.docs[docKey];
+        teardown.abort();
+    }, {
+        once: true
+    });
 })();
 
 

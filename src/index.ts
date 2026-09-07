@@ -5,6 +5,14 @@ import { initContainer } from "./flex";
 const REGISTRY_KEY = "__LIA_DYNFLEX_V1_0__";
 const DOC_KEY_ATTR = "data-dynflex-doc";
 
+/** Tracks which content documents already have DynFlex running under a host. */
+interface DynFlexRegistry {
+  docs: Record<string, boolean>;
+}
+
+/** The plugin script may be evaluated more than once; the registry is shared. */
+type RegistryHost = Window & { [REGISTRY_KEY]?: DynFlexRegistry };
+
 (function () {
   // ── Window context ──────────────────────────────────────────────────────────
   function isLiaScriptHost(win: Window): boolean {
@@ -57,15 +65,26 @@ const DOC_KEY_ATTR = "data-dynflex-doc";
   const contentDoc = document;
 
   // ── Run-once guard ──────────────────────────────────────────────────────────
-  (rootWin as any)[REGISTRY_KEY] = (rootWin as any)[REGISTRY_KEY] || { docs: {} };
+  const host = rootWin as RegistryHost;
+  const registry: DynFlexRegistry = host[REGISTRY_KEY] || { docs: {} };
+  host[REGISTRY_KEY] = registry;
 
-  let docKey = contentDoc.documentElement.getAttribute(DOC_KEY_ATTR);
-  if (!docKey) {
-    docKey = (contentDoc.baseURI || "dynflex") + "::" + Math.random().toString(36).slice(2);
+  const existingKey = contentDoc.documentElement.getAttribute(DOC_KEY_ATTR);
+  const docKey =
+    existingKey ||
+    (contentDoc.baseURI || "dynflex") + "::" + Math.random().toString(36).slice(2);
+  if (!existingKey) {
     contentDoc.documentElement.setAttribute(DOC_KEY_ATTR, docKey);
   }
-  if ((rootWin as any)[REGISTRY_KEY].docs[docKey]) return;
-  (rootWin as any)[REGISTRY_KEY].docs[docKey] = true;
+  if (registry.docs[docKey]) return;
+  registry.docs[docKey] = true;
+
+  // ── Teardown ────────────────────────────────────────────────────────────────
+  // Everything that outlives a single slide hangs off this signal, so unloading
+  // the content document releases the observers and listeners in one abort()
+  // instead of leaving them attached to a document that is no longer rendered.
+  const teardown = new AbortController();
+  const { signal } = teardown;
 
   // ── Style + theme ───────────────────────────────────────────────────────────
   ensureStyle(rootDoc);
@@ -73,7 +92,7 @@ const DOC_KEY_ATTR = "data-dynflex-doc";
 
   const theme = makeThemeManager(rootDoc, contentDoc);
   theme.update(true);
-  theme.observe(rootWin);
+  theme.observe(rootWin, signal);
 
   // ── Scan ────────────────────────────────────────────────────────────────────
   const initialized = new WeakSet<Element>();
@@ -97,14 +116,22 @@ const DOC_KEY_ATTR = "data-dynflex-doc";
 
   // Initial scans (staggered for late-rendering content)
   scan();
-  [30, 120, 320, 900].forEach(ms => setTimeout(scan, ms));
+  const timers = [30, 120, 320, 900].map(ms => setTimeout(scan, ms));
+  signal.addEventListener(
+    "abort",
+    () => timers.forEach(t => clearTimeout(t)),
+    { once: true }
+  );
 
   // ── DOM observer ────────────────────────────────────────────────────────────
   let scheduled = false;
   function scheduleScan(): void {
-    if (scheduled) return;
+    if (scheduled || signal.aborted) return;
     scheduled = true;
-    requestAnimationFrame(() => { scheduled = false; scan(); });
+    requestAnimationFrame(() => {
+      scheduled = false;
+      if (!signal.aborted) scan();
+    });
   }
 
   const mo = new MutationObserver(muts => {
@@ -112,4 +139,16 @@ const DOC_KEY_ATTR = "data-dynflex-doc";
   });
   try { mo.observe(contentDoc.documentElement, { childList: true, subtree: true }); } catch (_) {}
   try { mo.observe(rootDoc.documentElement,    { childList: true, subtree: true }); } catch (_) {}
+  signal.addEventListener("abort", () => mo.disconnect(), { once: true });
+
+  // When the content document goes away, release everything and drop the
+  // registry entry so a fresh document under the same host can initialize.
+  rootWin.addEventListener(
+    "pagehide",
+    () => {
+      delete registry.docs[docKey];
+      teardown.abort();
+    },
+    { once: true }
+  );
 })();

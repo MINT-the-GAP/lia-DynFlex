@@ -8,8 +8,11 @@ export function loadWidths(key: string): string[] | null {
   try {
     const raw = localStorage.getItem(PREFIX + key);
     if (!raw) return null;
-    const data = JSON.parse(raw);
-    return Array.isArray(data) ? data : null;
+    const data: unknown = JSON.parse(raw);
+    if (!Array.isArray(data)) return null;
+    // A corrupt or colliding key can yield non-strings; callers treat these as
+    // CSS width values, so reject the whole entry rather than restoring junk.
+    return data.every((w): w is string => typeof w === "string") ? data : null;
   } catch (_) {
     return null;
   }

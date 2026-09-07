@@ -1,6 +1,6 @@
 {
   "name": "lia-dynflex",
-  "version": "0.0.1",
+  "version": "1.0.3",
   "description": "LiaScript plugin for dynamic, resizable flex containers with interactive quiz elements",
   "main": "dist/index.js",
   "scripts": {
