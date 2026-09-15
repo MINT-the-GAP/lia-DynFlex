@@ -244,10 +244,19 @@ DynFlex includes several powerful features out of the box.
 - **Drag-to-resize** - Click and drag the resize handles between items
 - **Persistent widths** - Optionally save user-adjusted widths to localStorage
 - **Theme integration** - Automatically adapts to LiaScript theme colors
-- **Responsive** - Automatically switches to single-column on mobile (< 420px)
+- **Responsive** - Automatically switches to single-column on mobile (viewport <= 420px)
 - **Quiz support** - Handles LiaScript input fields with automatic block separation
 - **Wrapper-robust** - Works even when LiaScript wraps your elements
 - **Multiple check buttons** - Separate quiz items with blank lines for individual check buttons
+
+### Mobile widths and saved layouts
+
+At viewport widths of 420px or less, every card fills its container and resize
+handles are hidden. This also applies to explicit `--w` widths, widths changed
+with a handle, and widths restored with `data-store`. The mobile layout only
+overrides the displayed size: it does not delete or overwrite those widths or
+localStorage. Above 420px, the previous widths apply again. On a first visit,
+the automatic distribution of up to three columns also resumes when widened.
 
 ## Implementation
 

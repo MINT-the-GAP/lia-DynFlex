@@ -89,7 +89,14 @@ const CSS = `
 }
 
 @media (max-width: 420px){
-  .dynFlex{ --dyn-basis: 100% !important; }
+  /* Override the rendered size, keeping authored/dragged/stored --w intact. */
+  .dynFlex > .dynFlexItem{
+    flex-basis: 100% !important;
+    max-width: 100% !important;
+  }
+  .dynFlex > .dynFlexItem > .dynFlexResizer{
+    display: none !important;
+  }
 }
 `.trim();
 
