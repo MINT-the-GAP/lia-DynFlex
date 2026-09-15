@@ -77,7 +77,11 @@ function bindResizer(
     return (item.getBoundingClientRect().width / cw) * 100;
   };
 
+  const isMobile = () => item.ownerDocument.defaultView
+    ?.matchMedia("(max-width: 420px)").matches;
+
   const onDown = (e: PointerEvent) => {
+    if (isMobile()) return;
     dragging = true;
     container.classList.add("dynFlexDragging");
     startX = e.clientX; startW = getW();
@@ -86,6 +90,12 @@ function bindResizer(
   };
   const onMove = (e: PointerEvent) => {
     if (!dragging) return;
+    // A viewport change during a drag must not persist the mobile 100% layout.
+    if (isMobile()) {
+      dragging = false;
+      container.classList.remove("dynFlexDragging");
+      return;
+    }
     const cw = container.getBoundingClientRect().width || 1;
     const newW = clamp(startW + (e.clientX - startX) / cw * 100, cfg.min, cfg.max);
     item.style.setProperty("--w", newW.toFixed(2) + "%");

@@ -88,7 +88,14 @@ const $1385bbac798b6a24$var$CSS = `
 }
 
 @media (max-width: 420px){
-  .dynFlex{ --dyn-basis: 100% !important; }
+  /* Override the rendered size, keeping authored/dragged/stored --w intact. */
+  .dynFlex > .dynFlexItem{
+    flex-basis: 100% !important;
+    max-width: 100% !important;
+  }
+  .dynFlex > .dynFlexItem > .dynFlexResizer{
+    display: none !important;
+  }
 }
 `.trim();
 function $1385bbac798b6a24$export$b9324dd3ed41badd(doc) {
@@ -247,7 +254,9 @@ function $33087b216e99876d$var$bindResizer(rz, container, item, cfg, onSave) {
         const cw = container.getBoundingClientRect().width || 1;
         return item.getBoundingClientRect().width / cw * 100;
     };
+    const isMobile = ()=>item.ownerDocument.defaultView?.matchMedia("(max-width: 420px)").matches;
     const onDown = (e)=>{
+        if (isMobile()) return;
         dragging = true;
         container.classList.add("dynFlexDragging");
         startX = e.clientX;
@@ -257,6 +266,12 @@ function $33087b216e99876d$var$bindResizer(rz, container, item, cfg, onSave) {
     };
     const onMove = (e)=>{
         if (!dragging) return;
+        // A viewport change during a drag must not persist the mobile 100% layout.
+        if (isMobile()) {
+            dragging = false;
+            container.classList.remove("dynFlexDragging");
+            return;
+        }
         const cw = container.getBoundingClientRect().width || 1;
         const newW = $33087b216e99876d$var$clamp(startW + (e.clientX - startX) / cw * 100, cfg.min, cfg.max);
         item.style.setProperty("--w", newW.toFixed(2) + "%");
