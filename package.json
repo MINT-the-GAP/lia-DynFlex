@@ -4,7 +4,8 @@
   "description": "LiaScript plugin for dynamic, resizable flex containers with interactive quiz elements",
   "main": "dist/index.js",
   "scripts": {
-    "build": "parcel build src/index.ts --dist-dir dist --no-scope-hoist"
+    "build": "parcel build src/index.ts --dist-dir dist --no-scope-hoist",
+    "test:browser": "node test/browser-regression.mjs"
   },
   "keywords": [
     "liascript",

@@ -8,6 +8,7 @@ const CSS = `
   --dyn-basis: 25%;
 
   display: flex !important;
+  container-type: inline-size;
   flex-wrap: wrap !important;
   align-items: flex-start !important;
   gap: var(--dyn-gap) !important;
@@ -69,6 +70,9 @@ const CSS = `
   left: auto !important;
   right: calc(-1 * (var(--dyn-gap) / 2) - (var(--dyn-hit) / 2)) !important;
   margin-left: 0 !important;
+  /* The last grip has no following gap; keep its hit area above card controls. */
+  bottom: auto !important;
+  height: 44px !important;
 }
 
 .dynFlex > .dynFlexItem > .dynFlexResizer::before{
@@ -86,6 +90,17 @@ const CSS = `
 
 .dynFlex > .dynFlexItem > .dynFlexResizer:hover::before{
   width: 3px !important;
+}
+
+@container (max-width: 599px){
+  /* A narrow course pane needs one readable card even on a wide viewport. */
+  .dynFlex > .dynFlexItem{
+    flex-basis: 100% !important;
+    max-width: 100% !important;
+  }
+  .dynFlex > .dynFlexItem > .dynFlexResizer{
+    display: none !important;
+  }
 }
 
 @media (max-width: 420px){

@@ -241,22 +241,24 @@ DynFlex supports several configuration options via data attributes on the contai
           --{{0}}--
 DynFlex includes several powerful features out of the box.
 
-- **Drag-to-resize** - Click and drag the resize handles between items
+- **Drag-to-resize** - Click and drag the resize handles between items. The last card's handle is a 44px-high target at its top edge.
 - **Persistent widths** - Optionally save user-adjusted widths to localStorage
 - **Theme integration** - Automatically adapts to LiaScript theme colors
-- **Responsive** - Automatically switches to single-column on mobile (viewport <= 420px)
+- **Responsive** - Automatically switches to one column below 421px viewport width or 600px container width
 - **Quiz support** - Handles LiaScript input fields with automatic block separation
 - **Wrapper-robust** - Works even when LiaScript wraps your elements
 - **Multiple check buttons** - Separate quiz items with blank lines for individual check buttons
 
-### Mobile widths and saved layouts
+### Narrow layouts and saved widths
 
-At viewport widths of 420px or less, every card fills its container and resize
-handles are hidden. This also applies to explicit `--w` widths, widths changed
-with a handle, and widths restored with `data-store`. The mobile layout only
-overrides the displayed size: it does not delete or overwrite those widths or
-localStorage. Above 420px, the previous widths apply again. On a first visit,
-the automatic distribution of up to three columns also resumes when widened.
+At viewport widths of 420px or less, or when a DynFlex container is 599px or
+narrower (for example with an open table of contents), every card fills its
+container and resize handles are hidden. This also applies to explicit `--w`
+widths, widths changed with a handle, and widths restored with `data-store`.
+The narrow layout only overrides the displayed size: it does not delete or
+overwrite those widths or localStorage. When both viewport and container are
+wider, the previous widths apply again. On a first visit, the automatic
+distribution of up to three columns also resumes when widened.
 
 ## Implementation
 

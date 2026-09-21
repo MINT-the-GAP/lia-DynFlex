@@ -7,6 +7,7 @@ const $1385bbac798b6a24$var$CSS = `
   --dyn-basis: 25%;
 
   display: flex !important;
+  container-type: inline-size;
   flex-wrap: wrap !important;
   align-items: flex-start !important;
   gap: var(--dyn-gap) !important;
@@ -68,6 +69,9 @@ const $1385bbac798b6a24$var$CSS = `
   left: auto !important;
   right: calc(-1 * (var(--dyn-gap) / 2) - (var(--dyn-hit) / 2)) !important;
   margin-left: 0 !important;
+  /* The last grip has no following gap; keep its hit area above card controls. */
+  bottom: auto !important;
+  height: 44px !important;
 }
 
 .dynFlex > .dynFlexItem > .dynFlexResizer::before{
@@ -85,6 +89,17 @@ const $1385bbac798b6a24$var$CSS = `
 
 .dynFlex > .dynFlexItem > .dynFlexResizer:hover::before{
   width: 3px !important;
+}
+
+@container (max-width: 599px){
+  /* A narrow course pane needs one readable card even on a wide viewport. */
+  .dynFlex > .dynFlexItem{
+    flex-basis: 100% !important;
+    max-width: 100% !important;
+  }
+  .dynFlex > .dynFlexItem > .dynFlexResizer{
+    display: none !important;
+  }
 }
 
 @media (max-width: 420px){
@@ -264,9 +279,9 @@ function $33087b216e99876d$var$bindResizer(rz, container, item, cfg, onSave) {
         const cw = container.getBoundingClientRect().width || 1;
         return item.getBoundingClientRect().width / cw * 100;
     };
-    const isMobile = ()=>item.ownerDocument.defaultView?.matchMedia("(max-width: 420px)").matches;
+    const isNarrow = ()=>!!item.ownerDocument.defaultView?.matchMedia("(max-width: 420px)").matches || container.getBoundingClientRect().width <= 599;
     const onDown = (e)=>{
-        if (isMobile()) return;
+        if (isNarrow()) return;
         dragging = true;
         container.classList.add("dynFlexDragging");
         startX = e.clientX;
@@ -276,8 +291,8 @@ function $33087b216e99876d$var$bindResizer(rz, container, item, cfg, onSave) {
     };
     const onMove = (e)=>{
         if (!dragging) return;
-        // A viewport change during a drag must not persist the mobile 100% layout.
-        if (isMobile()) {
+        // A narrower viewport or course pane must not persist the 100% layout.
+        if (isNarrow()) {
             dragging = false;
             container.classList.remove("dynFlexDragging");
             return;
