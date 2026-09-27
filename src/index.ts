@@ -95,15 +95,13 @@ type RegistryHost = Window & { [REGISTRY_KEY]?: DynFlexRegistry };
   theme.observe(rootWin, signal);
 
   // ── Scan ────────────────────────────────────────────────────────────────────
-  const initialized = new WeakSet<Element>();
-
   function scanDoc(doc: Document): void {
     try {
       doc.querySelectorAll(".dynFlex").forEach(el => {
-        if (!initialized.has(el)) {
-          initialized.add(el);
-          initContainer(el, doc);
-        }
+        // initContainer is an idempotent reconcile. Running it for known
+        // containers is intentional: LiaScript can replace their direct
+        // wrappers or add flex children without replacing the container.
+        initContainer(el, doc);
       });
     } catch (_) {}
   }
@@ -111,7 +109,7 @@ type RegistryHost = Window & { [REGISTRY_KEY]?: DynFlexRegistry };
   function scan(): void {
     theme.update(false);
     scanDoc(rootDoc);
-    scanDoc(contentDoc);
+    if (contentDoc !== rootDoc) scanDoc(contentDoc);
   }
 
   // Initial scans (staggered for late-rendering content)
@@ -124,21 +122,32 @@ type RegistryHost = Window & { [REGISTRY_KEY]?: DynFlexRegistry };
   );
 
   // ── DOM observer ────────────────────────────────────────────────────────────
-  let scheduled = false;
-  function scheduleScan(): void {
-    if (scheduled || signal.aborted) return;
-    scheduled = true;
-    requestAnimationFrame(() => {
-      scheduled = false;
-      if (!signal.aborted) scan();
-    });
-  }
-
   const mo = new MutationObserver(muts => {
-    if (muts.some(m => m.addedNodes.length)) scheduleScan();
+    if (signal.aborted) return;
+    if (muts.some(m =>
+      (m.type === "childList" && (m.addedNodes.length || m.removedNodes.length)) ||
+      (m.type === "attributes" && m.attributeName === "class" && (() => {
+        const target = m.target as Element;
+        const oldClasses = new Set((m.oldValue || "").split(/\s+/).filter(Boolean));
+        return oldClasses.has("dynFlex") !== target.classList.contains("dynFlex") ||
+          oldClasses.has("flex-child") !== target.classList.contains("flex-child");
+      })())
+    )) {
+      // MutationObserver callbacks run in the pre-paint microtask checkpoint.
+      // Reconcile synchronously so newly rendered LiaScript content cannot be
+      // painted for one frame without DynFlex's item structure.
+      scan();
+    }
   });
-  try { mo.observe(contentDoc.documentElement, { childList: true, subtree: true }); } catch (_) {}
-  try { mo.observe(rootDoc.documentElement,    { childList: true, subtree: true }); } catch (_) {}
+  const mutationOptions: MutationObserverInit = {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ["class"],
+    attributeOldValue: true,
+  };
+  try { mo.observe(contentDoc.documentElement, mutationOptions); } catch (_) {}
+  try { mo.observe(rootDoc.documentElement,    mutationOptions); } catch (_) {}
   signal.addEventListener("abort", () => mo.disconnect(), { once: true });
 
   // When the content document goes away, release everything and drop the

@@ -60,19 +60,15 @@ const CSS = `
   width: var(--dyn-hit) !important;
   margin-left: calc(var(--dyn-gap) / 2 - (var(--dyn-hit) / 2)) !important;
 
-  cursor: ew-resize !important;
-  touch-action: none !important;
   background: transparent !important;
   z-index: 9999 !important;
+  pointer-events: none !important;
 }
 
 .dynFlex > .dynFlexItem > .dynFlexResizer.dynFlexResizerEnd{
   left: auto !important;
   right: calc(-1 * (var(--dyn-gap) / 2) - (var(--dyn-hit) / 2)) !important;
   margin-left: 0 !important;
-  /* The last grip has no following gap; keep its hit area above card controls. */
-  bottom: auto !important;
-  height: 44px !important;
 }
 
 .dynFlex > .dynFlexItem > .dynFlexResizer::before{
@@ -88,7 +84,13 @@ const CSS = `
   opacity: 0.95 !important;
 }
 
-.dynFlex > .dynFlexItem > .dynFlexResizer:hover::before{
+.dynFlexResizeHover,
+.dynFlexResizeHover *{
+  cursor: ew-resize !important;
+}
+
+.dynFlex > .dynFlexItem > .dynFlexResizer.dynFlexResizerHover::before,
+.dynFlex > .dynFlexItem > .dynFlexResizer.dynFlexResizerActive::before{
   width: 3px !important;
 }
 

@@ -33,14 +33,20 @@ export async function openBrowser() {
   });
   let nextId = 0;
   const pending = new Map();
+  const listeners = new Map();
   ws.addEventListener("message", event => {
     const message = JSON.parse(event.data);
-    if (!message.id) return;
-    const p = pending.get(message.id);
-    if (!p) return;
-    pending.delete(message.id);
-    if (message.error) p.reject(new Error(JSON.stringify(message.error)));
-    else p.resolve(message.result);
+    if (message.id) {
+      const p = pending.get(message.id);
+      if (!p) return;
+      pending.delete(message.id);
+      if (message.error) p.reject(new Error(JSON.stringify(message.error)));
+      else p.resolve(message.result);
+      return;
+    }
+    for (const listener of listeners.get(message.method) || []) {
+      Promise.resolve(listener(message.params)).catch(() => {});
+    }
   });
   const send = (method, params = {}) => new Promise((resolve, reject) => {
     const id = ++nextId;
@@ -52,6 +58,12 @@ export async function openBrowser() {
     if (result.exceptionDetails) throw new Error(result.exceptionDetails.exception?.description || result.exceptionDetails.text);
     return result.result.value;
   };
+  const on = (method, listener) => {
+    const handlers = listeners.get(method) || new Set();
+    handlers.add(listener);
+    listeners.set(method, handlers);
+    return () => handlers.delete(listener);
+  };
   const close = async () => {
     try { await send("Page.close"); } catch (_) {}
     ws.close();
@@ -62,5 +74,5 @@ export async function openBrowser() {
   };
   await send("Page.enable");
   await send("Runtime.enable");
-  return { send, evaluate, close };
+  return { send, evaluate, on, close };
 }

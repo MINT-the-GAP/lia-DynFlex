@@ -1,6 +1,6 @@
 <!--
 author:   MINT-the-GAP, Martin Lommatzsch, Jihad Hyadi
-version:  1.0.3
+version:  1.0.4
 language: en
 edit: true
 narrator: US English Female
@@ -28,7 +28,7 @@ https://github.com/MINT-the-GAP/lia-DynFlex
 
    or pin to a specific version:
 
-   `import: https://raw.githubusercontent.com/MINT-the-GAP/lia-DynFlex/0.0.1/README.md`
+   `import: https://raw.githubusercontent.com/MINT-the-GAP/lia-DynFlex/1.0.4/README.md`
 
 2. Copy the definitions into your project
 
@@ -241,7 +241,8 @@ DynFlex supports several configuration options via data attributes on the contai
           --{{0}}--
 DynFlex includes several powerful features out of the box.
 
-- **Drag-to-resize** - Click and drag the resize handles between items. The last card's handle is a 44px-high target at its top edge.
+- **Drag-to-resize** - Drag a card's visible resize rail anywhere along its full current height. The rail follows later content and animation height changes. It is pointer-transparent, so buttons, quiz fields, links, and other interactive content win hit-testing; non-interactive rail areas remain draggable by mouse and touch.
+- **Paint-safe updates** - Newly inserted containers, flex children, and replaced LiaScript wrappers are reconciled before the browser's next paint, without duplicate resizers or listeners.
 - **Persistent widths** - Optionally save user-adjusted widths to localStorage
 - **Theme integration** - Automatically adapts to LiaScript theme colors
 - **Responsive** - Automatically switches to one column below 421px viewport width or 600px container width
@@ -267,5 +268,5 @@ If you prefer not to use `import:`, copy the following block directly into
 the header of your LiaScript document.
 
 ```markdown
-script:   https://cdn.jsdelivr.net/gh/MINT-the-GAP/lia-DynFlex@0.0.1/dist/index.js
+script:   https://cdn.jsdelivr.net/gh/MINT-the-GAP/lia-DynFlex@1.0.4/dist/index.js
 ```
