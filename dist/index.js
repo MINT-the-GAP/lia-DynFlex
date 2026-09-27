@@ -65,6 +65,10 @@ const $1385bbac798b6a24$var$CSS = `
 }
 
 .dynFlex > .dynFlexItem > .dynFlexResizer.dynFlexResizerEnd{
+  top: 0 !important;
+  bottom: 0 !important;
+  height: auto !important;
+
   left: auto !important;
   right: calc(-1 * (var(--dyn-gap) / 2) - (var(--dyn-hit) / 2)) !important;
   margin-left: 0 !important;

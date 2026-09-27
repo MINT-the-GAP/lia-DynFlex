@@ -152,6 +152,29 @@ const assertOneResizerPerItem = async selector => {
   assert.ok(counts.length > 0, selector + " has initialized items");
   assert.deepEqual(counts, counts.map(() => 1), selector + " has exactly one resizer per direct item");
 };
+const endHandleGeometry = selector => b.evaluate(`(() => {
+  const container=document.querySelector(${JSON.stringify(selector)});
+  const items=[...container.querySelectorAll(':scope > .dynFlexItem')]
+    .filter(item=>getComputedStyle(item).display!=='none');
+  const item=items.at(-1);
+  const handle=item.querySelector(':scope > .dynFlexResizerEnd');
+  const itemRect=item.getBoundingClientRect();
+  const handleRect=handle.getBoundingClientRect();
+  return {
+    item:{top:itemRect.top,bottom:itemRect.bottom,height:itemRect.height},
+    handle:{top:handleRect.top,bottom:handleRect.bottom,height:handleRect.height},
+    itemCount:items.length,
+    lastText:item.textContent.trim()
+  };
+})()`);
+const assertEndHandleMatches = (geometry, message) => {
+  assert.ok(Math.abs(geometry.handle.top-geometry.item.top)<=1,
+    message+': top edges differ by more than 1px');
+  assert.ok(Math.abs(geometry.handle.bottom-geometry.item.bottom)<=1,
+    message+': bottom edges differ by more than 1px');
+  assert.ok(Math.abs(geometry.handle.height-geometry.item.height)<=1,
+    message+': heights differ by more than 1px');
+};
 
 try {
   await viewport(390);
@@ -219,6 +242,106 @@ try {
 
   await viewport(1440);
   await startFrameAudit();
+
+  await run(() => {
+    const fixtures=document.createElement('div');
+    fixtures.id='end-handle-fixtures';
+    fixtures.innerHTML=`
+      <section class='dynFlex' id='horizontal-layout' style='width:1000px;margin-top:50px'>
+        <div class='flex-child' style='--w:25%'><div style='height:60px'>Kurz</div></div>
+        <div class='flex-child' style='--w:30%'><div style='height:140px'>Mittel</div></div>
+        <div class='flex-child' style='--w:40%'><div style='height:260px'>Hoch</div></div>
+      </section>
+      <section class='dynFlex' id='vertical-layout' style='width:800px;margin-top:50px'>
+        <div class='flex-child' style='--w:100%'><div style='height:70px'>Oben</div></div>
+        <div class='flex-child' style='--w:100%'><div style='height:130px'>Mitte</div></div>
+        <div class='flex-child' style='--w:100%'></div>
+      </section>
+      <section class='dynFlex' id='content-changes' style='width:1000px;margin-top:50px'>
+        <div class='flex-child' style='--w:55%'>
+          <div id='wrapping-text'>Dieser absichtlich lange Text wird bei einer schmaleren Karte über mehrere Zeilen umgebrochen und vergrößert dadurch die Höhe des letzten DynFlex-Items.</div>
+          <div id='quiz-solution' style='display:none;height:150px'>Quiz-Lösung</div>
+          <img id='late-image' alt='' style='display:block;width:100%;height:auto'>
+          <div id='lia-animation-step' style='height:40px'>Animationsschritt</div>
+        </div>
+      </section>`;
+    document.querySelector('main').appendChild(fixtures);
+  });
+  await frames(4);
+
+  const horizontal=await endHandleGeometry('#horizontal-layout');
+  const horizontalItems=await run(() => [...document.querySelectorAll(
+    '#horizontal-layout > .dynFlexItem'
+  )].map(item => {
+    const rect=item.getBoundingClientRect();
+    return {x:rect.x,y:rect.y,height:rect.height};
+  }));
+  assert.ok(horizontalItems[0].x<horizontalItems[1].x &&
+    horizontalItems[1].x<horizontalItems[2].x,
+    'horizontal fixture renders in one row');
+  assert.ok(new Set(horizontalItems.map(item=>Math.round(item.height))).size===3,
+    'horizontal fixture contains differently sized items');
+  assertEndHandleMatches(horizontal,
+    'horizontal layout end handle matches the last item BoundingRect');
+
+  const vertical=await endHandleGeometry('#vertical-layout');
+  const verticalItems=await run(() => [...document.querySelectorAll(
+    '#vertical-layout > .dynFlexItem'
+  )].map(item => {
+    const rect=item.getBoundingClientRect();
+    return {x:rect.x,y:rect.y};
+  }));
+  assert.ok(verticalItems[0].y<verticalItems[1].y &&
+    verticalItems[1].y<verticalItems[2].y,
+    'vertical fixture renders as stacked DynFlex items');
+  assert.equal(vertical.lastText,'','vertical fixture ends with an empty item');
+  assertEndHandleMatches(vertical,
+    'vertical layout empty-item end handle matches the last item BoundingRect');
+
+  let changing=await endHandleGeometry('#content-changes');
+  assertEndHandleMatches(changing,'initial dynamic-content handle');
+  const initialChangingHeight=changing.item.height;
+
+  await run(() => document.querySelector(
+    '#content-changes > .dynFlexItem'
+  ).style.setProperty('--w','18%'));
+  await frames(3);
+  changing=await endHandleGeometry('#content-changes');
+  assert.ok(changing.item.height>initialChangingHeight,
+    'wrapped text increases the last item height');
+  assertEndHandleMatches(changing,'handle follows wrapped text');
+
+  const beforeSolution=changing.item.height;
+  await run(() => document.querySelector('#quiz-solution').style.display='block');
+  await frames(3);
+  changing=await endHandleGeometry('#content-changes');
+  assert.ok(changing.item.height>=beforeSolution+149,
+    'revealed quiz solution increases the last item height');
+  assertEndHandleMatches(changing,'handle follows a revealed quiz solution');
+
+  const beforeImage=changing.item.height;
+  await b.evaluate(`new Promise(resolve => {
+    const image=document.querySelector('#late-image');
+    image.addEventListener('load',resolve,{once:true});
+    image.src='data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%27600%27%20height=%27180%27%3E%3C/svg%3E';
+  })`);
+  await frames(3);
+  changing=await endHandleGeometry('#content-changes');
+  assert.ok(changing.item.height>beforeImage,
+    'late-loaded image increases the last item height');
+  assertEndHandleMatches(changing,'handle follows a late-loaded image');
+
+  for (let cycle=1;cycle<=8;cycle++) {
+    await run(() => document.querySelector('#lia-animation-step').style.height='280px');
+    await frames(2);
+    assertEndHandleMatches(await endHandleGeometry('#content-changes'),
+      'LiaScript animation forward cycle '+cycle);
+    await run(() => document.querySelector('#lia-animation-step').style.height='40px');
+    await frames(2);
+    assertEndHandleMatches(await endHandleGeometry('#content-changes'),
+      'LiaScript animation backward cycle '+cycle);
+  }
+  console.log('1440: horizontal/vertical layouts, empty item, content changes and 8 animation cycles keep the end handle within 1px');
 
   const tallBefore=await run(() => {
     const item=document.querySelector("#single-high > .dynFlexItem");
