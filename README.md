@@ -243,6 +243,7 @@ DynFlex includes several powerful features out of the box.
 
 - **Drag-to-resize** - Drag a card's visible resize rail anywhere along its full current height. The rail follows later content and animation height changes. It is pointer-transparent, so buttons, quiz fields, links, and other interactive content win hit-testing; non-interactive rail areas remain draggable by mouse and touch.
 - **Paint-safe updates** - Newly inserted containers, flex children, and replaced LiaScript wrappers are reconciled before the browser's next paint, without duplicate resizers or listeners.
+- **Responsive website embeds** - Generic `??[Title](URL)` iframe fallbacks inside cards follow the actual card width, including slide changes, delayed loading, and dragging, without reloading the embedded website. Explicit heights and provider-specific embeds retain their sizing.
 - **Persistent widths** - Optionally save user-adjusted widths to localStorage
 - **Theme integration** - Automatically adapts to LiaScript theme colors
 - **Responsive** - Automatically switches to one column below 421px viewport width or 600px container width
@@ -260,6 +261,26 @@ The narrow layout only overrides the displayed size: it does not delete or
 overwrite those widths or localStorage. When both viewport and container are
 wider, the previous widths apply again. On a first visit, the automatic
 distribution of up to three columns also resumes when widened.
+
+### Website embed heights
+
+No extra height annotation is needed for a website embedded in a `.flex-child`:
+
+```markdown
+??[Wochenaufgaben](https://wochenaufgaben.gsg-freiberg.de)
+```
+
+DynFlex corrects LiaScript's initial height measurement once the card layout is
+ready and follows later width changes. This sizes the iframe viewport; it does
+not measure the contents of a cross-origin website. To choose a height yourself,
+use an explicit annotation, which DynFlex preserves:
+
+```markdown
+??[Wochenaufgaben](https://wochenaufgaben.gsg-freiberg.de) <!-- style="height:80vh;" -->
+```
+
+The compatibility adapter supports LiaScript's current closed-shadow `div_`
+wrapper and open shadow roots. Unknown component internals are left untouched.
 
 ## Implementation
 

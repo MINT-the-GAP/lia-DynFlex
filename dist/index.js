@@ -605,6 +605,171 @@ function $33087b216e99876d$export$57d319145ef8fcba(container, doc) {
 }
 
 
+/** LiaScript's generic iframe fallback measures its width only on connect. */ /**
+ * Current LiaScript uses a closed shadow root and exposes its wrapper as div_.
+ * Keep that compatibility dependency here: never patch attachShadow/prototypes,
+ * and leave unfamiliar component versions alone. No iframe document access is
+ * needed, so cross-origin sites work without reloading their browsing context.
+ */ function $9f30198469c459d2$var$embedRoot(embed) {
+    if (embed.shadowRoot) return embed.shadowRoot;
+    const wrapper = embed.div_;
+    if (wrapper?.nodeType !== 1 || wrapper.ownerDocument !== embed.ownerDocument) return null;
+    const root = wrapper.getRootNode();
+    return root.host === embed ? wrapper : null;
+}
+function $9f30198469c459d2$var$hasAuthoredHeight(embed, frame) {
+    if (embed.hasAttribute("height") || frame.hasAttribute("height")) return true;
+    if (embed.style.height && embed.style.height !== "auto") return true;
+    if (embed.style.blockSize || embed.style.aspectRatio) return true;
+    try {
+        const attrs = JSON.parse(embed.getAttribute("data-attributes") || "{}");
+        if (!attrs || typeof attrs !== "object") return true;
+        if (Object.keys(attrs).some((key)=>key.toLowerCase() === "height")) return true;
+        const style = embed.ownerDocument.createElement("div").style;
+        style.cssText = typeof attrs.style === "string" ? attrs.style : "";
+        return !!(style.height || style.blockSize || style.aspectRatio);
+    } catch (_) {
+        // Malformed author options must not become permission to override them.
+        return true;
+    }
+}
+function $9f30198469c459d2$var$fallbackFrame(state) {
+    const frames = state.root.querySelectorAll("iframe");
+    if (frames.length !== 1) return null;
+    const frame = frames[0];
+    const url = state.embed.url;
+    if (!url || frame.hasAttribute("srcdoc")) return null;
+    try {
+        // oEmbed providers (videos, widgets, etc.) own their own sizing. Only the
+        // generic fallback uses the original requested URL as the iframe source.
+        return new URL(frame.getAttribute("src") || "", state.embed.baseURI).href === new URL(url, state.embed.baseURI).href ? frame : null;
+    } catch (_) {
+        return null;
+    }
+}
+function $9f30198469c459d2$var$restoreHeight(state) {
+    const { frame: frame, appliedHeight: appliedHeight } = state;
+    // Do not undo a later height written by the author or another component.
+    if (frame && appliedHeight !== null && frame.style.height === appliedHeight && !frame.style.getPropertyPriority("height")) {
+        if (state.originalHeight) frame.style.height = state.originalHeight;
+        else frame.style.removeProperty("height");
+    }
+    state.frame = null;
+    state.appliedHeight = null;
+}
+function $9f30198469c459d2$export$a4a9c06dd8f50aa9(doc, signal) {
+    const win = doc.defaultView;
+    const states = new Map();
+    const belongs = (embed)=>embed.isConnected && embed.ownerDocument === doc && !!embed.closest(".flex-child")?.closest(".dynFlex");
+    function update(state) {
+        if (signal.aborted || states.get(state.embed) !== state || !belongs(state.embed) || !win) return;
+        const frame = $9f30198469c459d2$var$fallbackFrame(state);
+        if (frame !== state.frame) $9f30198469c459d2$var$restoreHeight(state);
+        if (!frame || $9f30198469c459d2$var$hasAuthoredHeight(state.embed, frame)) {
+            $9f30198469c459d2$var$restoreHeight(state);
+            return;
+        }
+        if (frame.style.getPropertyPriority("height")) return;
+        if (state.appliedHeight !== null && frame.style.height !== state.appliedHeight) return;
+        const parent = state.embed.parentElement;
+        if (!parent || !state.embed.getClientRects().length) return;
+        const padding = parseFloat(win.getComputedStyle(parent).paddingLeft) || 0;
+        const width = parent.clientWidth - padding - 30;
+        // Hidden/zero-width animation steps get a real measurement when revealed.
+        if (!Number.isFinite(width) || width <= 0) return;
+        const authoredScale = Number(state.embed.getAttribute("scale"));
+        const scale = Number.isFinite(authoredScale) && authoredScale > 0 ? authoredScale : 0.674;
+        let height = Math.max(1, Math.floor(width * scale));
+        const available = win.screen.availHeight;
+        if (available > 0 && height > available) height = Math.max(1, Math.floor(available * scale));
+        if (!Number.isFinite(height)) return;
+        if (!state.frame) {
+            state.frame = frame;
+            state.originalHeight = frame.style.height;
+        }
+        const value = height + "px";
+        if (frame.style.height !== value) frame.style.height = value;
+        state.appliedHeight = value;
+    }
+    function stop(state) {
+        state.mutations.disconnect();
+        state.resize.disconnect();
+        if (state.pendingFrame !== null) win?.cancelAnimationFrame(state.pendingFrame);
+        $9f30198469c459d2$var$restoreHeight(state);
+        states.delete(state.embed);
+    }
+    function scan() {
+        if (signal.aborted || !win || typeof ResizeObserver === "undefined") return;
+        for (const state of states.values())if (!belongs(state.embed) || $9f30198469c459d2$var$embedRoot(state.embed) !== state.root) stop(state);
+        doc.querySelectorAll(".dynFlex .flex-child lia-embed").forEach((embed)=>{
+            let state = states.get(embed);
+            if (!state) {
+                const root = $9f30198469c459d2$var$embedRoot(embed);
+                if (!root) return;
+                const mutations = new MutationObserver(()=>update(created));
+                let lastWidth = -1;
+                const resize = new ResizeObserver((entries)=>{
+                    const width = entries[0]?.contentRect.width;
+                    if (width === lastWidth) return;
+                    lastWidth = width;
+                    // Writing a height inside ResizeObserver feeds back into its own
+                    // observation. Coalesce width changes into the next animation frame.
+                    if (created.pendingFrame === null) created.pendingFrame = win.requestAnimationFrame(()=>{
+                        created.pendingFrame = null;
+                        update(created);
+                    });
+                });
+                const created = {
+                    embed: embed,
+                    root: root,
+                    mutations: mutations,
+                    resize: resize,
+                    frame: null,
+                    originalHeight: "",
+                    appliedHeight: null,
+                    pendingFrame: null
+                };
+                state = created;
+                states.set(embed, state);
+                mutations.observe(embed, {
+                    attributes: true,
+                    attributeFilter: [
+                        "style",
+                        "height",
+                        "scale",
+                        "data-attributes"
+                    ]
+                });
+                mutations.observe(root, {
+                    childList: true,
+                    subtree: true,
+                    attributes: true,
+                    attributeFilter: [
+                        "src",
+                        "height"
+                    ]
+                });
+                resize.observe(embed);
+            }
+            update(state);
+        });
+    }
+    const resizeAll = ()=>states.forEach(update);
+    win?.addEventListener("resize", resizeAll);
+    // An import may run before the browser has upgraded lia-embed elements.
+    win?.customElements?.whenDefined("lia-embed").then(scan);
+    signal.addEventListener("abort", ()=>{
+        win?.removeEventListener("resize", resizeAll);
+        states.forEach(stop);
+    }, {
+        once: true
+    });
+    return {
+        scan: scan
+    };
+}
+
+
 const $882b6d93070905b3$var$REGISTRY_KEY = "__LIA_DYNFLEX_V1_0__";
 const $882b6d93070905b3$var$DOC_KEY_ATTR = "data-dynflex-doc";
 (function() {
@@ -670,6 +835,11 @@ const $882b6d93070905b3$var$DOC_KEY_ATTR = "data-dynflex-doc";
     const theme = (0, $67d8bd73256b8650$export$3d687a15f750108a)(rootDoc, contentDoc);
     theme.update(true);
     theme.observe(rootWin, signal);
+    const embeds = new Map();
+    for (const doc of new Set([
+        rootDoc,
+        contentDoc
+    ]))embeds.set(doc, (0, $9f30198469c459d2$export$a4a9c06dd8f50aa9)(doc, signal));
     // ── Scan ────────────────────────────────────────────────────────────────────
     function scanDoc(doc) {
         try {
@@ -679,6 +849,9 @@ const $882b6d93070905b3$var$DOC_KEY_ATTR = "data-dynflex-doc";
                 // wrappers or add flex children without replacing the container.
                 (0, $33087b216e99876d$export$57d319145ef8fcba)(el, doc);
             });
+            // Measure after all cards have their final layout. Embed observers also
+            // handle asynchronous iframe creation and subsequent width changes.
+            embeds.get(doc)?.scan();
         } catch (_) {}
     }
     function scan() {

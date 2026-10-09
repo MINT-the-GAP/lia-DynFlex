@@ -1,6 +1,7 @@
 import { ensureStyle } from "./style";
 import { makeThemeManager } from "./theme";
 import { initContainer } from "./flex";
+import { makeEmbedManager } from "./embed";
 
 const REGISTRY_KEY = "__LIA_DYNFLEX_V1_0__";
 const DOC_KEY_ATTR = "data-dynflex-doc";
@@ -94,6 +95,11 @@ type RegistryHost = Window & { [REGISTRY_KEY]?: DynFlexRegistry };
   theme.update(true);
   theme.observe(rootWin, signal);
 
+  const embeds = new Map<Document, ReturnType<typeof makeEmbedManager>>();
+  for (const doc of new Set([rootDoc, contentDoc])) {
+    embeds.set(doc, makeEmbedManager(doc, signal));
+  }
+
   // ── Scan ────────────────────────────────────────────────────────────────────
   function scanDoc(doc: Document): void {
     try {
@@ -103,6 +109,9 @@ type RegistryHost = Window & { [REGISTRY_KEY]?: DynFlexRegistry };
         // wrappers or add flex children without replacing the container.
         initContainer(el, doc);
       });
+      // Measure after all cards have their final layout. Embed observers also
+      // handle asynchronous iframe creation and subsequent width changes.
+      embeds.get(doc)?.scan();
     } catch (_) {}
   }
 

@@ -6,7 +6,9 @@
   "scripts": {
     "build": "parcel build src/index.ts --dist-dir dist --no-scope-hoist",
     "test:browser": "node test/browser-regression.mjs",
-    "test:presentation": "node test/presentation-e2e.mjs"
+    "test:presentation": "node test/presentation-e2e.mjs",
+    "test:embed": "node test/embed-regression.mjs",
+    "test:embed-course": "node test/embed-course-e2e.mjs"
   },
   "keywords": [
     "liascript",
