@@ -259,14 +259,29 @@ const $33087b216e99876d$var$INTERACTIVE_SELECTOR = [
     ".lia-quiz"
 ].join(",");
 const $33087b216e99876d$var$clamp = (x, a, b)=>Math.min(b, Math.max(a, x));
-function $33087b216e99876d$var$parsePct(x, fallback) {
-    if (!x) return fallback;
-    const n = Number(x.trim().replace("%", ""));
-    return Number.isFinite(n) ? n : fallback;
+// Do not round a measured card up: several rounded percentages plus the gaps
+// can exceed a full row and wrap a card merely by saving/reloading the layout.
+const $33087b216e99876d$var$widthPercent = (value)=>(Math.floor(value * 1e6) / 1e6).toFixed(6) + "%";
+function $33087b216e99876d$var$parsePct(x) {
+    if (!x || !/^\d+(?:\.\d+)?%?$/.test(x.trim())) return null;
+    const n = Number(x.trim().replace(/%$/, ""));
+    return Number.isFinite(n) && n >= 0 && n <= 100 ? n : null;
 }
-function $33087b216e99876d$var$ensurePx(v) {
-    const t = v.trim();
-    return t.endsWith("px") ? t : t + "px";
+function $33087b216e99876d$var$positivePct(x) {
+    const n = $33087b216e99876d$var$parsePct(x);
+    return n !== null && n > 0 ? n : null;
+}
+function $33087b216e99876d$var$readPixels(value, fallback, allowZero = false) {
+    const text = value?.trim() || "";
+    const n = Number(text.replace(/px$/, ""));
+    return /^\d+(?:\.\d+)?(?:px)?$/.test(text) && Number.isFinite(n) && (allowZero ? n >= 0 : n > 0) ? n + "px" : fallback + "px";
+}
+function $33087b216e99876d$var$readWidths(value) {
+    if (!value) return null;
+    const widths = value.split(",").map($33087b216e99876d$var$positivePct);
+    if (!widths.every((n)=>n !== null)) return null;
+    const total = widths.reduce((sum, n)=>sum + n, 0);
+    return Math.abs(total - 100) < 0.000001 ? widths : null;
 }
 // ── Blockify ──────────────────────────────────────────────────────────────────
 function $33087b216e99876d$var$blockifyFlexChild(fc, doc) {
@@ -402,7 +417,8 @@ function $33087b216e99876d$var$getDocumentInteractions(doc) {
         const cw = active.binding.container.getBoundingClientRect().width || 1;
         const cfg = active.binding.state.cfg;
         const newW = $33087b216e99876d$var$clamp(active.startW + (event.clientX - active.startX) / cw * 100, cfg.min, cfg.max);
-        active.binding.item.style.setProperty("--w", newW.toFixed(2) + "%");
+        active.binding.state.initialWidths.delete(active.binding.item);
+        active.binding.item.style.setProperty("--w", $33087b216e99876d$var$widthPercent(newW));
         active.binding.state.persist();
         event.preventDefault();
     }, {
@@ -490,20 +506,39 @@ function $33087b216e99876d$var$getDirectItems(container) {
         ...seen
     ];
 }
+function $33087b216e99876d$var$readStartWidth(item, container) {
+    // Authors configure the flex-child; LiaScript may wrap it in the actual
+    // flex item. Never borrow a setting from a nested DynFlex container.
+    const child = item.matches(".flex-child") ? item : Array.from(item.querySelectorAll(".flex-child")).find((fc)=>fc.closest(".dynFlex") === container);
+    return $33087b216e99876d$var$positivePct(child?.getAttribute("data-start-width") ?? null);
+}
 function $33087b216e99876d$var$readConfig(el) {
+    const columns = Number(el.getAttribute("data-columns"));
+    const max = $33087b216e99876d$var$positivePct(el.getAttribute("data-max")) ?? 100;
     return {
-        gap: el.getAttribute("data-gap") ? $33087b216e99876d$var$ensurePx(el.getAttribute("data-gap")) : "20px",
-        hit: el.getAttribute("data-hit") ? $33087b216e99876d$var$ensurePx(el.getAttribute("data-hit")) : "22px",
-        basis: $33087b216e99876d$var$parsePct(el.getAttribute("data-basis"), 25),
-        min: $33087b216e99876d$var$parsePct(el.getAttribute("data-min"), 10),
-        max: $33087b216e99876d$var$parsePct(el.getAttribute("data-max"), 100),
+        gap: $33087b216e99876d$var$readPixels(el.getAttribute("data-gap"), 20, true),
+        hit: $33087b216e99876d$var$readPixels(el.getAttribute("data-hit"), 22),
+        basis: $33087b216e99876d$var$positivePct(el.getAttribute("data-basis")),
+        columns: Number.isSafeInteger(columns) && columns > 0 ? columns : 3,
+        widths: $33087b216e99876d$var$readWidths(el.getAttribute("data-widths")),
+        min: Math.min($33087b216e99876d$var$parsePct(el.getAttribute("data-min")) ?? 10, max),
+        max: max,
         store: el.getAttribute("data-store") || undefined
     };
+}
+function $33087b216e99876d$var$initialWidth(cfg, count, index) {
+    if (cfg.widths?.length === count) // Percentages share the space remaining after all gaps. Raw percentages
+    // that sum to 100 would otherwise push the last card onto a new row.
+    return `calc((100% - ${count - 1} * ${cfg.gap}) * ${cfg.widths[index] / 100})`;
+    if (cfg.basis !== null) return cfg.basis + "%";
+    const perRow = Math.min(count, cfg.columns);
+    return perRow <= 1 ? "100%" : `calc((100% - ${perRow - 1} * ${cfg.gap}) / ${perRow})`;
 }
 function $33087b216e99876d$var$makeState(el) {
     const state = {
         cfg: $33087b216e99876d$var$readConfig(el),
         items: [],
+        initialWidths: new WeakMap(),
         persist: ()=>{}
     };
     state.persist = ()=>{
@@ -516,9 +551,10 @@ function $33087b216e99876d$var$makeState(el) {
             const w = it.style.getPropertyValue("--w").trim();
             if (!w.endsWith("%")) {
                 const actual = it.getBoundingClientRect().width / cw * 100;
-                if (Number.isFinite(actual) && actual > 0) it.style.setProperty("--w", actual.toFixed(2) + "%");
+                if (Number.isFinite(actual) && actual > 0) it.style.setProperty("--w", $33087b216e99876d$var$widthPercent(actual));
             }
         });
+        state.items.forEach((it)=>state.initialWidths.delete(it));
         (0, $34de0361b1c4c74d$export$7300864b179c42a)(store, state.items.map((it)=>it.style.getPropertyValue("--w").trim() || ""));
     };
     $33087b216e99876d$var$containerStates.set(el, state);
@@ -531,7 +567,7 @@ function $33087b216e99876d$export$57d319145ef8fcba(container, doc) {
     state.cfg = cfg;
     el.style.setProperty("--dyn-gap", cfg.gap);
     el.style.setProperty("--dyn-hit", cfg.hit);
-    el.style.setProperty("--dyn-basis", cfg.basis + "%");
+    el.style.setProperty("--dyn-basis", (cfg.basis ?? 25) + "%");
     $33087b216e99876d$var$blockifyAll(container, doc);
     const previousItems = state.items.slice();
     const previousWidths = previousItems.map((it)=>it.style.getPropertyValue("--w").trim());
@@ -557,7 +593,7 @@ function $33087b216e99876d$export$57d319145ef8fcba(container, doc) {
         if (it.style.getPropertyValue("--w").trim()) return;
         const previous = previousItems[i];
         const width = previousWidths[i];
-        if (previous && previous !== it && !items.includes(previous) && width) it.style.setProperty("--w", width);
+        if (previous && previous !== it && !items.includes(previous) && width && state.initialWidths.get(previous) !== width) it.style.setProperty("--w", width);
     });
     // Restore stored widths only when the current structure has no explicit or
     // transferred widths. Existing widths must survive every reconcile.
@@ -565,22 +601,20 @@ function $33087b216e99876d$export$57d319145ef8fcba(container, doc) {
         const stored = (0, $34de0361b1c4c74d$export$874f9d0b0b7048d)(cfg.store);
         if (stored && stored.length === items.length) items.forEach((it, i)=>{
             const w = (stored[i] || "").trim();
-            if (w.endsWith("%")) it.style.setProperty("--w", w);
+            if (w.endsWith("%") && $33087b216e99876d$var$parsePct(w) !== null) it.style.setProperty("--w", w);
         });
     }
-    // On first visit (no stored widths set), distribute all children evenly
-    // so they fill 100% of the container width. Uses a CSS calc() expression so
-    // no pixel measurements are needed and it stays correct on resize.
-    // calc() values are never persisted (only "xx.xx%" values from dragging are
-    // saved), so the even distribution is re-applied on every visit until the
-    // user adjusts widths by dragging.
-    const anyWidthSet = items.some((it)=>it.style.getPropertyValue("--w").trim());
-    if (!anyWidthSet) {
-        const n = items.length;
-        const perRow = Math.min(n, 3);
-        const evenWidth = perRow <= 1 ? "100%" : `calc((100% - ${perRow - 1} * ${cfg.gap}) / ${perRow})`;
-        items.forEach((it)=>it.style.setProperty("--w", evenWidth));
-    }
+    // Recompute only untouched initial widths. This also handles children added
+    // later, replaced LiaScript wrappers and changed configuration attributes,
+    // while authored, restored and dragged widths retain priority.
+    items.forEach((item, i)=>{
+        const current = item.style.getPropertyValue("--w").trim();
+        if (current && state.initialWidths.get(item) !== current) return;
+        const startWidth = $33087b216e99876d$var$readStartWidth(item, container);
+        const width = startWidth === null ? $33087b216e99876d$var$initialWidth(cfg, items.length, i) : startWidth + "%";
+        if (current !== width) item.style.setProperty("--w", width);
+        state.initialWidths.set(item, width);
+    });
     items.forEach((item, i)=>{
         const existing = Array.from(item.querySelectorAll(":scope > .dynFlexResizer"));
         let rz = existing.shift();
@@ -871,9 +905,19 @@ const $882b6d93070905b3$var$DOC_KEY_ATTR = "data-dynflex-doc";
         once: true
     });
     // ── DOM observer ────────────────────────────────────────────────────────────
+    const configAttributes = [
+        "data-gap",
+        "data-hit",
+        "data-basis",
+        "data-columns",
+        "data-widths",
+        "data-min",
+        "data-max",
+        "data-store"
+    ];
     const mo = new MutationObserver((muts)=>{
         if (signal.aborted) return;
-        if (muts.some((m)=>m.type === "childList" && (m.addedNodes.length || m.removedNodes.length) || m.type === "attributes" && m.attributeName === "class" && (()=>{
+        if (muts.some((m)=>m.type === "childList" && (m.addedNodes.length || m.removedNodes.length) || m.type === "attributes" && configAttributes.includes(m.attributeName || "") && m.target.classList.contains("dynFlex") || m.type === "attributes" && m.attributeName === "data-start-width" && m.target.classList.contains("flex-child") || m.type === "attributes" && m.attributeName === "class" && (()=>{
                 const target = m.target;
                 const oldClasses = new Set((m.oldValue || "").split(/\s+/).filter(Boolean));
                 return oldClasses.has("dynFlex") !== target.classList.contains("dynFlex") || oldClasses.has("flex-child") !== target.classList.contains("flex-child");
@@ -887,7 +931,9 @@ const $882b6d93070905b3$var$DOC_KEY_ATTR = "data-dynflex-doc";
         subtree: true,
         attributes: true,
         attributeFilter: [
-            "class"
+            "class",
+            "data-start-width",
+            ...configAttributes
         ],
         attributeOldValue: true
     };

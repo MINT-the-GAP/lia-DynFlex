@@ -3,7 +3,9 @@ import { saveWidths, loadWidths } from "./storage";
 interface ContainerConfig {
   gap: string;
   hit: string;
-  basis: number;
+  basis: number | null;
+  columns: number;
+  widths: number[] | null;
   min: number;
   max: number;
   store?: string;
@@ -12,6 +14,7 @@ interface ContainerConfig {
 interface ContainerState {
   cfg: ContainerConfig;
   items: HTMLElement[];
+  initialWidths: WeakMap<HTMLElement, string>;
   persist: () => void;
 }
 
@@ -64,15 +67,35 @@ const INTERACTIVE_SELECTOR = [
 
 const clamp = (x: number, a: number, b: number) => Math.min(b, Math.max(a, x));
 
-function parsePct(x: string | null, fallback: number): number {
-  if (!x) return fallback;
-  const n = Number(x.trim().replace("%", ""));
-  return Number.isFinite(n) ? n : fallback;
+// Do not round a measured card up: several rounded percentages plus the gaps
+// can exceed a full row and wrap a card merely by saving/reloading the layout.
+const widthPercent = (value: number) =>
+  (Math.floor(value * 1e6) / 1e6).toFixed(6) + "%";
+
+function parsePct(x: string | null): number | null {
+  if (!x || !/^\d+(?:\.\d+)?%?$/.test(x.trim())) return null;
+  const n = Number(x.trim().replace(/%$/, ""));
+  return Number.isFinite(n) && n >= 0 && n <= 100 ? n : null;
 }
 
-function ensurePx(v: string): string {
-  const t = v.trim();
-  return t.endsWith("px") ? t : t + "px";
+function positivePct(x: string | null): number | null {
+  const n = parsePct(x);
+  return n !== null && n > 0 ? n : null;
+}
+
+function readPixels(value: string | null, fallback: number, allowZero = false): string {
+  const text = value?.trim() || "";
+  const n = Number(text.replace(/px$/, ""));
+  return /^\d+(?:\.\d+)?(?:px)?$/.test(text) && Number.isFinite(n) &&
+    (allowZero ? n >= 0 : n > 0) ? n + "px" : fallback + "px";
+}
+
+function readWidths(value: string | null): number[] | null {
+  if (!value) return null;
+  const widths = value.split(",").map(positivePct);
+  if (!widths.every((n): n is number => n !== null)) return null;
+  const total = widths.reduce((sum, n) => sum + n, 0);
+  return Math.abs(total - 100) < 0.000001 ? widths : null;
 }
 
 // ── Blockify ──────────────────────────────────────────────────────────────────
@@ -231,7 +254,8 @@ function getDocumentInteractions(doc: Document): DocumentInteractions {
       cfg.min,
       cfg.max
     );
-    active.binding.item.style.setProperty("--w", newW.toFixed(2) + "%");
+    active.binding.state.initialWidths.delete(active.binding.item);
+    active.binding.item.style.setProperty("--w", widthPercent(newW));
     active.binding.state.persist();
     event.preventDefault();
   }, { capture: true });
@@ -321,21 +345,49 @@ function getDirectItems(container: Element): HTMLElement[] {
   return [...seen];
 }
 
+function readStartWidth(item: HTMLElement, container: Element): number | null {
+  // Authors configure the flex-child; LiaScript may wrap it in the actual
+  // flex item. Never borrow a setting from a nested DynFlex container.
+  const child = item.matches(".flex-child")
+    ? item
+    : Array.from(item.querySelectorAll<HTMLElement>(".flex-child"))
+      .find(fc => fc.closest(".dynFlex") === container);
+  return positivePct(child?.getAttribute("data-start-width") ?? null);
+}
+
 function readConfig(el: HTMLElement): ContainerConfig {
+  const columns = Number(el.getAttribute("data-columns"));
+  const max = positivePct(el.getAttribute("data-max")) ?? 100;
   return {
-    gap:   el.getAttribute("data-gap")   ? ensurePx(el.getAttribute("data-gap")!)   : "20px",
-    hit:   el.getAttribute("data-hit")   ? ensurePx(el.getAttribute("data-hit")!)   : "22px",
-    basis: parsePct(el.getAttribute("data-basis"), 25),
-    min:   parsePct(el.getAttribute("data-min"),   10),
-    max:   parsePct(el.getAttribute("data-max"),   100),
+    gap: readPixels(el.getAttribute("data-gap"), 20, true),
+    hit: readPixels(el.getAttribute("data-hit"), 22),
+    basis: positivePct(el.getAttribute("data-basis")),
+    columns: Number.isSafeInteger(columns) && columns > 0 ? columns : 3,
+    widths: readWidths(el.getAttribute("data-widths")),
+    min: Math.min(parsePct(el.getAttribute("data-min")) ?? 10, max),
+    max,
     store: el.getAttribute("data-store") || undefined,
   };
+}
+
+function initialWidth(cfg: ContainerConfig, count: number, index: number): string {
+  if (cfg.widths?.length === count) {
+    // Percentages share the space remaining after all gaps. Raw percentages
+    // that sum to 100 would otherwise push the last card onto a new row.
+    return `calc((100% - ${count - 1} * ${cfg.gap}) * ${cfg.widths[index] / 100})`;
+  }
+  if (cfg.basis !== null) return cfg.basis + "%";
+  const perRow = Math.min(count, cfg.columns);
+  return perRow <= 1
+    ? "100%"
+    : `calc((100% - ${perRow - 1} * ${cfg.gap}) / ${perRow})`;
 }
 
 function makeState(el: HTMLElement): ContainerState {
   const state: ContainerState = {
     cfg: readConfig(el),
     items: [],
+    initialWidths: new WeakMap(),
     persist: () => {},
   };
   state.persist = () => {
@@ -350,11 +402,12 @@ function makeState(el: HTMLElement): ContainerState {
         if (!w.endsWith("%")) {
           const actual = (it.getBoundingClientRect().width / cw) * 100;
           if (Number.isFinite(actual) && actual > 0) {
-            it.style.setProperty("--w", actual.toFixed(2) + "%");
+            it.style.setProperty("--w", widthPercent(actual));
           }
         }
       });
     }
+    state.items.forEach(it => state.initialWidths.delete(it));
     saveWidths(store, state.items.map(it =>
       it.style.getPropertyValue("--w").trim() || ""
     ));
@@ -371,7 +424,7 @@ export function initContainer(container: Element, doc: Document): void {
 
   el.style.setProperty("--dyn-gap",   cfg.gap);
   el.style.setProperty("--dyn-hit",   cfg.hit);
-  el.style.setProperty("--dyn-basis", cfg.basis + "%");
+  el.style.setProperty("--dyn-basis", (cfg.basis ?? 25) + "%");
 
   blockifyAll(container, doc);
 
@@ -405,7 +458,8 @@ export function initContainer(container: Element, doc: Document): void {
     if (it.style.getPropertyValue("--w").trim()) return;
     const previous = previousItems[i];
     const width = previousWidths[i];
-    if (previous && previous !== it && !items.includes(previous) && width) {
+    if (previous && previous !== it && !items.includes(previous) && width &&
+        state.initialWidths.get(previous) !== width) {
       it.style.setProperty("--w", width);
     }
   });
@@ -417,26 +471,26 @@ export function initContainer(container: Element, doc: Document): void {
     if (stored && stored.length === items.length) {
       items.forEach((it, i) => {
         const w = (stored[i] || "").trim();
-        if (w.endsWith("%")) it.style.setProperty("--w", w);
+        if (w.endsWith("%") && parsePct(w) !== null) {
+          it.style.setProperty("--w", w);
+        }
       });
     }
   }
 
-  // On first visit (no stored widths set), distribute all children evenly
-  // so they fill 100% of the container width. Uses a CSS calc() expression so
-  // no pixel measurements are needed and it stays correct on resize.
-  // calc() values are never persisted (only "xx.xx%" values from dragging are
-  // saved), so the even distribution is re-applied on every visit until the
-  // user adjusts widths by dragging.
-  const anyWidthSet = items.some(it => it.style.getPropertyValue("--w").trim());
-  if (!anyWidthSet) {
-    const n = items.length;
-    const perRow = Math.min(n, 3);
-    const evenWidth = perRow <= 1
-      ? "100%"
-      : `calc((100% - ${perRow - 1} * ${cfg.gap}) / ${perRow})`;
-    items.forEach(it => it.style.setProperty("--w", evenWidth));
-  }
+  // Recompute only untouched initial widths. This also handles children added
+  // later, replaced LiaScript wrappers and changed configuration attributes,
+  // while authored, restored and dragged widths retain priority.
+  items.forEach((item, i) => {
+    const current = item.style.getPropertyValue("--w").trim();
+    if (current && state.initialWidths.get(item) !== current) return;
+    const startWidth = readStartWidth(item, container);
+    const width = startWidth === null
+      ? initialWidth(cfg, items.length, i)
+      : startWidth + "%";
+    if (current !== width) item.style.setProperty("--w", width);
+    state.initialWidths.set(item, width);
+  });
 
   items.forEach((item, i) => {
     const existing = Array.from(

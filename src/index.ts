@@ -131,10 +131,18 @@ type RegistryHost = Window & { [REGISTRY_KEY]?: DynFlexRegistry };
   );
 
   // ── DOM observer ────────────────────────────────────────────────────────────
+  const configAttributes = [
+    "data-gap", "data-hit", "data-basis", "data-columns", "data-widths",
+    "data-min", "data-max", "data-store",
+  ];
   const mo = new MutationObserver(muts => {
     if (signal.aborted) return;
     if (muts.some(m =>
       (m.type === "childList" && (m.addedNodes.length || m.removedNodes.length)) ||
+      (m.type === "attributes" && configAttributes.includes(m.attributeName || "") &&
+        (m.target as Element).classList.contains("dynFlex")) ||
+      (m.type === "attributes" && m.attributeName === "data-start-width" &&
+        (m.target as Element).classList.contains("flex-child")) ||
       (m.type === "attributes" && m.attributeName === "class" && (() => {
         const target = m.target as Element;
         const oldClasses = new Set((m.oldValue || "").split(/\s+/).filter(Boolean));
@@ -152,7 +160,7 @@ type RegistryHost = Window & { [REGISTRY_KEY]?: DynFlexRegistry };
     childList: true,
     subtree: true,
     attributes: true,
-    attributeFilter: ["class"],
+    attributeFilter: ["class", "data-start-width", ...configAttributes],
     attributeOldValue: true,
   };
   try { mo.observe(contentDoc.documentElement, mutationOptions); } catch (_) {}

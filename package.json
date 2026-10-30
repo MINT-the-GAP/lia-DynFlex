@@ -5,6 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "parcel build src/index.ts --dist-dir dist --no-scope-hoist",
+    "test:attributes": "node test/attributes-regression.mjs",
     "test:browser": "node test/browser-regression.mjs",
     "test:presentation": "node test/presentation-e2e.mjs",
     "test:embed": "node test/embed-regression.mjs",
