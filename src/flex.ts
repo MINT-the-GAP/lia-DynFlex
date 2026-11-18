@@ -5,6 +5,7 @@ interface ContainerConfig {
   hit: string;
   basis: number | null;
   columns: number;
+  automaticColumns: boolean;
   widths: number[] | null;
   min: number;
   max: number;
@@ -357,12 +358,14 @@ function readStartWidth(item: HTMLElement, container: Element): number | null {
 
 function readConfig(el: HTMLElement): ContainerConfig {
   const columns = Number(el.getAttribute("data-columns"));
+  const validColumns = Number.isSafeInteger(columns) && columns > 0;
   const max = positivePct(el.getAttribute("data-max")) ?? 100;
   return {
     gap: readPixels(el.getAttribute("data-gap"), 20, true),
     hit: readPixels(el.getAttribute("data-hit"), 22),
     basis: positivePct(el.getAttribute("data-basis")),
-    columns: Number.isSafeInteger(columns) && columns > 0 ? columns : 3,
+    columns: validColumns ? columns : 3,
+    automaticColumns: !validColumns,
     widths: readWidths(el.getAttribute("data-widths")),
     min: Math.min(parsePct(el.getAttribute("data-min")) ?? 10, max),
     max,
@@ -377,6 +380,7 @@ function initialWidth(cfg: ContainerConfig, count: number, index: number): strin
     return `calc((100% - ${count - 1} * ${cfg.gap}) * ${cfg.widths[index] / 100})`;
   }
   if (cfg.basis !== null) return cfg.basis + "%";
+  if (cfg.automaticColumns && count >= 3) return "var(--dyn-auto-width)";
   const perRow = Math.min(count, cfg.columns);
   return perRow <= 1
     ? "100%"

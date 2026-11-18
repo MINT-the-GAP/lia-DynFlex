@@ -11,7 +11,7 @@ const fixture = (attributes = "", count = 3, content = children(count)) =>
   `<section class="dynFlex" id="layout" ${attributes}>${content}</section>`;
 const persistedFixture = fixture('data-store="attributes-layout"', 4);
 const zeroFixture = fixture('data-min="0" data-store="attributes-zero"', 3);
-const roundingFixture = fixture('data-store="attributes-rounding" style="width:999px"', 3);
+const roundingFixture = fixture('data-store="attributes-rounding" data-columns="3" style="width:999px"', 3);
 const routeFixtures = { "/storage": persistedFixture, "/storage-zero": zeroFixture, "/storage-rounding": roundingFixture };
 const server = createServer((req, res) => {
   if (req.url === "/dist/index.js") {
@@ -22,7 +22,7 @@ const server = createServer((req, res) => {
   res.setHeader("Content-Type", "text/html; charset=utf-8");
   res.end(`<!doctype html><html><head>
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <style>body{margin:0;font:16px Arial,sans-serif}main{margin:20px;width:min(1000px,calc(100vw - 40px))}</style>
+    <style>body{margin:0;font:16px Arial,sans-serif}main{margin:20px;width:min(1200px,calc(100vw - 40px))}</style>
     </head><body><main id="host">${routeFixtures[req.url] || ""}</main>
     <script src="/dist/index.js"></script></body></html>`);
 });
@@ -135,6 +135,29 @@ try {
     columns(value, 3);
     assert.equal(value.gap, "20px");
     near(value.items[0].handle.w, 22, "Default handle width");
+  });
+
+  await test("Automatic columns use two columns at medium widths while explicit columns win", async () => {
+    try {
+      await viewport(820);
+      await mount("", 6);
+      let value = await measure();
+      columns(value, 2);
+      assert.ok(value.items.every(item => item.handleDisplay !== "none"), "Medium handles remain visible");
+
+      await viewport(1440);
+      await mount('style="width:1023px"', 6);
+      columns(await measure(), 2);
+      await mount('style="width:1024px"', 6);
+      columns(await measure(), 3);
+
+      await viewport(820);
+      await mount('data-columns="3"', 6);
+      value = await measure();
+      columns(value, 3);
+    } finally {
+      await viewport(1440);
+    }
   });
 
   await test("data-gap accepts bare pixels, px suffix and zero", async () => {

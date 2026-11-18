@@ -6,6 +6,7 @@ const CSS = `
   --dyn-hit:  22px;
   --dyn-accent: var(--dynflex-accent, #0b5fff);
   --dyn-basis: 25%;
+  --dyn-auto-width: calc((100% - 2 * var(--dyn-gap)) / 3);
 
   display: flex !important;
   container-type: inline-size;
@@ -96,6 +97,13 @@ const CSS = `
 .dynFlex > .dynFlexItem > .dynFlexResizer.dynFlexResizerHover::before,
 .dynFlex > .dynFlexItem > .dynFlexResizer.dynFlexResizerActive::before{
   width: 3px !important;
+}
+
+@container (min-width: 600px) and (max-width: 1023px){
+  /* Keep the automatic layout readable on medium-width course panes. */
+  .dynFlex > .dynFlexItem{
+    --dyn-auto-width: calc((100% - var(--dyn-gap)) / 2);
+  }
 }
 
 @container (max-width: 599px){

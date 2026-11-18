@@ -187,7 +187,7 @@ DynFlex supports layout defaults on the container and an optional initial-width 
 
 - `data-gap`: Gap between flex items in pixels, for example `30` or `30px` (default: `20px`).
 - `data-hit`: Width of the resize handle hit area in pixels, for example `28` or `28px` (default: `22px`).
-- `data-columns`: Initial number of equally wide items per row, for example `2` or `5` (default: `3`). Use a positive whole number. If there are fewer children, they fill one row. Gaps are included in the calculation.
+- `data-columns`: Explicit initial number of equally wide items per row, for example `2` or `5`. Without this attribute, the responsive default is `3` on wide containers and `2` on medium-width containers. Use a positive whole number. If there are fewer children, they fill one row. Gaps are included in the calculation.
 - `data-basis`: Explicit initial width for each item as a percentage of the container width, for example `40` or `40%`. Without this attribute, `data-columns` determines the initial layout. Gaps take additional space, so `data-basis="50"` with a positive gap does not fit two items in one row; use `data-columns="2"` for that.
 - `data-widths`: Individual initial percentages in child order, for example `50,30,20` or `50%, 30%, 20%`. Supply one positive percentage per child, adding up to 100. DynFlex subtracts the gaps first and distributes the remaining space, so all children fit in one row. Invalid lists fall back to `data-basis` or `data-columns`.
 - `data-min`: Minimum width while dragging, as a percentage of the container width (default: `10%`).
@@ -204,7 +204,7 @@ settings. Inline `--w` widths prevent restoring a saved layout. The drag limits
 To try new initial settings after saving a layout, use a new `data-store` value
 or remove its localStorage entry, named `dynFlexWidths::<your-key>`, then reload
 the page. Narrow containers and small screens display one column regardless of these settings;
-see the narrow-layout explanation below. Very small shares or very high column
+see the responsive-layout explanation below. Very small shares or very high column
 counts can still wrap if the cards' padding no longer fits into the assigned
 widths.
 
@@ -524,12 +524,12 @@ DynFlex includes several powerful features out of the box.
 - **Responsive website embeds** - Generic `??[Title](URL)` iframe fallbacks inside cards follow the actual card width, including slide changes, delayed loading, and dragging, without reloading the embedded website. Explicit heights and provider-specific embeds retain their sizing.
 - **Persistent widths** - Optionally save user-adjusted widths to localStorage
 - **Theme integration** - Automatically adapts to LiaScript theme colors
-- **Responsive** - Automatically switches to one column below 421px viewport width or 600px container width
+- **Responsive** - Automatically starts with three columns from 1024px container width, two columns from 600px through 1023px, and one column below 600px (or at viewport widths below 421px)
 - **Quiz support** - Handles LiaScript input fields with automatic block separation
 - **Wrapper-robust** - Works even when LiaScript wraps your elements
 - **Multiple check buttons** - Separate quiz items with blank lines for individual check buttons
 
-### Narrow layouts and saved widths
+### Responsive layouts and saved widths
 
 At viewport widths of 420px or less, or when a DynFlex container is 599px or
 narrower (for example with an open table of contents), every card fills its
@@ -540,7 +540,12 @@ overwrite those widths or localStorage. When both viewport and container are
 wider, the previous widths apply again. On a first visit, the configured
 `data-columns`, `data-basis`, or `data-widths` layout and any child-specific
 `data-start-width` values also resume when widened.
-Without explicit settings, the automatic distribution uses up to three columns.
+Without explicit initial-width settings, containers from 600px through 1023px
+start with up to two columns; containers from 1024px use up to three. Resize
+handles remain available in both layouts. An explicit `data-columns`,
+`data-basis`, `data-widths`, or child-specific `data-start-width`, as well as
+dragged, inline, or restored widths, keeps its existing priority over this
+automatic two-column default.
 
 ### Website embed heights
 

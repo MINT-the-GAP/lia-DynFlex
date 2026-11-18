@@ -5,6 +5,7 @@ const $1385bbac798b6a24$var$CSS = `
   --dyn-hit:  22px;
   --dyn-accent: var(--dynflex-accent, #0b5fff);
   --dyn-basis: 25%;
+  --dyn-auto-width: calc((100% - 2 * var(--dyn-gap)) / 3);
 
   display: flex !important;
   container-type: inline-size;
@@ -95,6 +96,13 @@ const $1385bbac798b6a24$var$CSS = `
 .dynFlex > .dynFlexItem > .dynFlexResizer.dynFlexResizerHover::before,
 .dynFlex > .dynFlexItem > .dynFlexResizer.dynFlexResizerActive::before{
   width: 3px !important;
+}
+
+@container (min-width: 600px) and (max-width: 1023px){
+  /* Keep the automatic layout readable on medium-width course panes. */
+  .dynFlex > .dynFlexItem{
+    --dyn-auto-width: calc((100% - var(--dyn-gap)) / 2);
+  }
 }
 
 @container (max-width: 599px){
@@ -514,12 +522,14 @@ function $33087b216e99876d$var$readStartWidth(item, container) {
 }
 function $33087b216e99876d$var$readConfig(el) {
     const columns = Number(el.getAttribute("data-columns"));
+    const validColumns = Number.isSafeInteger(columns) && columns > 0;
     const max = $33087b216e99876d$var$positivePct(el.getAttribute("data-max")) ?? 100;
     return {
         gap: $33087b216e99876d$var$readPixels(el.getAttribute("data-gap"), 20, true),
         hit: $33087b216e99876d$var$readPixels(el.getAttribute("data-hit"), 22),
         basis: $33087b216e99876d$var$positivePct(el.getAttribute("data-basis")),
-        columns: Number.isSafeInteger(columns) && columns > 0 ? columns : 3,
+        columns: validColumns ? columns : 3,
+        automaticColumns: !validColumns,
         widths: $33087b216e99876d$var$readWidths(el.getAttribute("data-widths")),
         min: Math.min($33087b216e99876d$var$parsePct(el.getAttribute("data-min")) ?? 10, max),
         max: max,
@@ -531,6 +541,7 @@ function $33087b216e99876d$var$initialWidth(cfg, count, index) {
     // that sum to 100 would otherwise push the last card onto a new row.
     return `calc((100% - ${count - 1} * ${cfg.gap}) * ${cfg.widths[index] / 100})`;
     if (cfg.basis !== null) return cfg.basis + "%";
+    if (cfg.automaticColumns && count >= 3) return "var(--dyn-auto-width)";
     const perRow = Math.min(count, cfg.columns);
     return perRow <= 1 ? "100%" : `calc((100% - ${perRow - 1} * ${cfg.gap}) / ${perRow})`;
 }

@@ -193,8 +193,12 @@ try {
 
   await viewport(768);
   let data = await run(measure);
-  assert.ok(data.items[0].box.x < data.items[1].box.x && data.items[1].box.x < data.items[2].box.x);
-  console.log("768: three columns restored");
+  assert.ok(data.items[0].box.x < data.items[1].box.x, "medium layout has two columns");
+  assert.ok(Math.abs(data.items[0].box.w - data.items[1].box.w) < 1, "medium columns are equally wide");
+  assert.ok(data.items[2].box.y > data.items[0].box.y, "third medium item starts a new row");
+  assert.ok(Math.abs(data.items[2].box.x - data.items[0].box.x) < 1, "second row starts at the left edge");
+  assert.ok(data.items.every(item => item.handle !== "none"), "medium layout remains resizable");
+  console.log("768: two-column intermediate layout");
 
   await viewport(1366);
   data = await run(measure);
